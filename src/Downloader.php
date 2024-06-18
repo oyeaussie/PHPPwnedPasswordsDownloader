@@ -24,7 +24,7 @@ class Downloader
 
     protected $hashRangesStart = 0;
 
-    protected $hashRangesEnd = 1024 * 1024;
+    protected $hashRangesEnd = 10;
 
     protected $resume = true;
 
@@ -52,6 +52,8 @@ class Downloader
 
     public $lastReadHash;
 
+    public $compress = false;
+
     public function __construct($guzzleOptions = [])
     {
         $this->now = date('Y_m_d_H_i_s');
@@ -77,7 +79,11 @@ class Downloader
         }
 
         if (count($arg) > 0) {
-            $method = $arg[0];
+            if (strtolower(array_values($arg)[array_key_last($arg)]) === 'compress') {
+                $this->compress = true;
+            }
+
+            $method = strtolower($arg[0]);
 
             if ((int) $method > 0) {//Perform concurrent Pool Requests
                 $this->concurrent = $method;
@@ -104,6 +110,10 @@ class Downloader
             if ($method === 'force') {
                 $this->force = true;
 
+                if (PHP_SAPI === 'cli') {
+                    $this->newProgress();
+                }
+            } else if ($method === 'compress') {
                 if (PHP_SAPI === 'cli') {
                     $this->newProgress();
                 }
@@ -551,6 +561,12 @@ class Downloader
                 try {
                     $this->localContent->write('downloads/' . strtoupper($hash) . '.txt', $response->getBody()->getContents());
 
+                    if ($this->compress) {
+                        $this->compressHashFile(strtoupper($hash));
+
+                        $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                    }
+
                     if ($response->getHeader('eTag') && isset($response->getHeader('eTag')[0])) {
                         $etag = $response->getHeader('eTag')[0];
                     }
@@ -562,7 +578,7 @@ class Downloader
                         $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($this->hashCounter + 1)) ? 0 : $this->hashCounter);
                     }
 
-                    $this->writeToLogFile('new.txt', $hash);
+                    $this->writeToLogFile('new.txt', strtoupper($hash));
                 } catch (UnableToWriteFile | FilesystemException $e) {
                     echo $e->getMessage();
 
@@ -577,9 +593,26 @@ class Downloader
                     $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($this->hashCounter + 1)) ? 0 : $this->hashCounter);
                 }
 
-                $this->writeToLogFile('nochange.txt', $hash);
+                if ($this->compress) {
+                    $this->compressHashFile(strtoupper($hash));
+
+                    $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                }
+
+                $this->writeToLogFile('nochange.txt', strtoupper($hash));
             }
         }
+    }
+
+    public function compressHashFile($file)
+    {
+        $zip = new \ZipArchive;
+
+        $zip->open(__DIR__ . '/../data/downloads/' . strtoupper($file) . '.zip', $zip::CREATE);
+
+        $zip->addFile(__DIR__ . '/../data/downloads/' . $file . '.txt', $file . '.txt');
+
+        $zip->close();
     }
 
     public function getHeaders($hash)
