@@ -138,17 +138,19 @@ class Downloader
                 if ($arg[0] === 'download') {
                     $this->check = 2;
                     $this->resume = true;
-                } else if ((int) $arg[0] > 0) {
-                    $this->concurrent = (int) $arg[0];
 
-                    try {
-                        if ($this->localContent->fileExists('pool.txt')) {
-                            $this->localContent->delete('pool.txt');
+                    if (isset($arg[1]) && (int) $arg[1] > 0) {
+                        $this->concurrent = (int) $arg[1];
+
+                        try {
+                            if ($this->localContent->fileExists('pool.txt')) {
+                                $this->localContent->delete('pool.txt');
+                            }
+                        } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
+                            echo $e->getMessage();
+
+                            return false;
                         }
-                    } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
-                        echo $e->getMessage();
-
-                        return false;
                     }
                 }
 
@@ -399,10 +401,6 @@ class Downloader
                     $message = 'Checking hash ' . strtoupper($convertedHash) . '... (' . ($hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
                 }
 
-                if ($this->concurrent > 0) {
-                    $message = 'Adding hash to pool ' . strtoupper($convertedHash) . '... (' . ($hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
-                }
-
                 $this->updateProgress($message);
             }
         }
@@ -442,6 +440,7 @@ class Downloader
                 } else if ($this->check === 2) {
                     if (PHP_SAPI === 'cli') {
                         $this->progress->finish();
+
                         echo 'Check found ' . count($checkfile) . ' hashes missing! Downloading missing hashes...' . PHP_EOL;
                     }
 
@@ -451,18 +450,23 @@ class Downloader
                         $this->newProgress();
                     }
 
-                    foreach ($checkfile as $hash) {
+                    foreach ($checkfile as $hashKey => $hash) {
                         if ($this->concurrent > 0) {
                             $this->writeToLogFile('pool.txt', $hash);
 
                             $this->poolCount++;
+
+                            if (PHP_SAPI === 'cli') {
+                                $this->updateProgress('Adding hash to pool ' . strtoupper($hash) . '... (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')');
+                            }
                         } else {
                             $this->downloadHash(strtoupper(trim($hash)));
+
+                            if (PHP_SAPI === 'cli') {
+                                $this->updateProgress();
+                            }
                         }
 
-                        if (PHP_SAPI === 'cli') {
-                            $this->updateProgress();
-                        }
                     }
                 }
             } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
