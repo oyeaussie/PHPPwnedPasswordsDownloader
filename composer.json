@@ -1,0 +1,36 @@
+{
+    "name": "oyeaussie/phppwnedpasswordsdownloader",
+    "description": "PHP downloader for HaveIBeenPwned",
+    "keywords": [
+        "HaveIBeenPwned",
+        "downloader"
+    ],
+    "authors": [
+        {
+            "name": "Oyeaussie",
+            "email": "email@oyeaussie.com",
+            "homepage": "https://github.com/oyeaussie"
+        }
+    ],
+    "require": {
+        "php": "^7.2.5 || ^8.0",
+        "ext-json": "*",
+        "guzzlehttp/promises": "^1.5.3 || ^2.0.1",
+        "guzzlehttp/psr7": "^1.9.1 || ^2.5.1",
+        "psr/http-client": "^1.0",
+        "symfony/deprecation-contracts": "^2.2 || ^3.0",
+        "wp-cli/php-cli-tools": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPPwnedPasswordsDownloader\\": "src/"
+        }
+    },
+    "require": {
+        "guzzlehttp/guzzle": "^7.8",
+        "league/flysystem": "^3.28"
+    },
+    "require-dev": {
+        "wp-cli/php-cli-tools": "^0.11.22"
+    }
+}
