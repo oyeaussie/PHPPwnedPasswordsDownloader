@@ -172,7 +172,7 @@ class Downloader
                         if (is_int($unPackedStart) && is_int($unPackedEnd)) {
                             $this->resume = false;
                             $this->hashRangesStart = $unPackedStart;
-                            $this->hashRangesEnd = $unPackedEnd;
+                            $this->hashRangesEnd = $unPackedEnd + 1;
                         } else {
                             echo 'Please provide correct start and end range!' . PHP_EOL;
 
@@ -194,7 +194,7 @@ class Downloader
                 }
             } else if ($method === 'one' ||
                        $method === 'count' ||
-                       $method === 'multi' ||
+                       $method === 'multiple' ||
                        $method === 'hashfile' ||
                        $method === 'intfile'
             ) {
@@ -215,7 +215,7 @@ class Downloader
                         }
 
                         return true;
-                    } else if ($method === 'multi') {
+                    } else if ($method === 'multiple') {
                         $arg = trim(trim($arg[0]), ',');
 
                         $arg = explode(',', $arg);
@@ -226,11 +226,15 @@ class Downloader
                             $this->newProgress();
                         }
 
-                        foreach ($arg as $hash) {
+                        foreach ($arg as $hashKey => $hash) {
                             $this->downloadHash(strtoupper(trim($hash)));
 
                             if (PHP_SAPI === 'cli') {
-                                $this->updateProgress();
+                                $message = 'Downloading new hash: ' . $this->new . ' | ' .
+                                           'Skipped (same eTag) : ' . $this->noChange .
+                                           ' (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')';
+
+                                $this->updateProgress($message);
                             }
                         }
                     } else if ($method === 'hashfile') {
@@ -259,11 +263,15 @@ class Downloader
                                 $this->newProgress();
                             }
 
-                            foreach ($hashfile as $hash) {
+                            foreach ($hashfile as $hashKey => $hash) {
                                 $this->downloadHash(strtoupper(trim($hash)));
 
                                 if (PHP_SAPI === 'cli') {
-                                    $this->updateProgress();
+                                    $message = 'Downloading new hash: ' . $this->new . ' | ' .
+                                               'Skipped (same eTag) : ' . $this->noChange .
+                                               ' (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')';
+
+                                    $this->updateProgress($message);
                                 }
                             }
                         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
@@ -297,19 +305,23 @@ class Downloader
                                 $this->newProgress();
                             }
 
-                            foreach ($intfile as $hashCounter) {
+                            foreach ($intfile as $hashKey => $hashCounter) {
                                 $this->hashCounter = $hashCounter;
 
                                 $convertedHash = $this->convert($hashCounter);
 
-                                // if (!$convertedHash) {
-                                //     throw new \Exception('Failed to convert counter ' . $hashCounter . ' to hash!' . PHP_EOL);
-                                // }
+                                if (!$convertedHash) {
+                                    throw new \Exception('Failed to convert counter ' . $hashCounter . ' to hash!' . PHP_EOL);
+                                }
 
                                 $this->downloadHash(strtoupper(trim($convertedHash)));
 
                                 if (PHP_SAPI === 'cli') {
-                                    $this->updateProgress();
+                                    $message = 'Downloading new hash: ' . $this->new . ' | ' .
+                                               'Skipped (same eTag) : ' . $this->noChange .
+                                               ' (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')';
+
+                                    $this->updateProgress($message);
                                 }
                             }
                         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
@@ -327,7 +339,7 @@ class Downloader
                 } else {
                     if ($method === 'one') {
                         echo 'Please provide hash!' . PHP_EOL;
-                    } else if ($method === 'multi') {
+                    } else if ($method === 'multiple') {
                         echo 'Please provide hashes!' . PHP_EOL;
                     }
 
@@ -463,7 +475,11 @@ class Downloader
                             $this->downloadHash(strtoupper(trim($hash)));
 
                             if (PHP_SAPI === 'cli') {
-                                $this->updateProgress();
+                                $message = 'Downloading new hash: ' . $this->new . ' | ' .
+                                           'Skipped (same eTag) : ' . $this->noChange .
+                                           ' (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')';
+
+                                $this->updateProgress($message);
                             }
                         }
 
@@ -760,7 +776,7 @@ class Downloader
         if (!$message) {
             $message =
                 'Downloading new hash: ' . $this->new . ' | ' .
-                'Skipped (no hash change) : ' . $this->noChange .
+                'Skipped (same eTag) : ' . $this->noChange .
                 ' (' . ($this->hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
         }
 
