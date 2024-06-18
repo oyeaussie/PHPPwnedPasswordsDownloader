@@ -86,7 +86,7 @@ class Downloader
             $method = strtolower($arg[0]);
 
             if ((int) $method > 0) {//Perform concurrent Pool Requests
-                $this->concurrent = $method;
+                $this->concurrent = (int) $method;
 
                 try {
                     if ($this->localContent->fileExists('pool.txt')) {
@@ -122,6 +122,9 @@ class Downloader
                     if ($this->localContent->fileExists('checkfile.txt')) {
                         $this->localContent->delete('checkfile.txt');
                     }
+                    if ($this->localContent->fileExists('resume.txt')) {
+                        $this->localContent->delete('resume.txt');
+                    }
                 } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
                     echo $e->getMessage();
 
@@ -135,6 +138,18 @@ class Downloader
                 if ($arg[0] === 'download') {
                     $this->check = 2;
                     $this->resume = true;
+                } else if ((int) $arg[0] > 0) {
+                    $this->concurrent = (int) $arg[0];
+
+                    try {
+                        if ($this->localContent->fileExists('pool.txt')) {
+                            $this->localContent->delete('pool.txt');
+                        }
+                    } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
+                        echo $e->getMessage();
+
+                        return false;
+                    }
                 }
 
                 if (PHP_SAPI === 'cli') {
@@ -316,7 +331,7 @@ class Downloader
 
                     return false;
                 }
-            } else {
+            } else if ($this->concurrent === 0) {
                 echo 'Unknown argument ' . $method . '!' . PHP_EOL;
 
                 return false;
