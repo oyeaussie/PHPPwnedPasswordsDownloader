@@ -24,7 +24,7 @@ class Downloader
 
     protected $hashRangesStart = 0;
 
-    protected $hashRangesEnd = 10;
+    protected $hashRangesEnd = 1024 * 1024;
 
     protected $resume = true;
 
@@ -316,6 +316,10 @@ class Downloader
 
                     return false;
                 }
+            } else {
+                echo 'Unknown argument ' . $method . '!' . PHP_EOL;
+
+                return false;
             }
         } else {
             if (PHP_SAPI === 'cli') {
@@ -564,9 +568,9 @@ class Downloader
                     $this->localContent->write('downloads/' . strtoupper($hash) . '.txt', $response->getBody()->getContents());
 
                     if ($this->compress) {
-                        $this->compressHashFile(strtoupper($hash));
-
-                        $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                        if ($this->compressHashFile(strtoupper($hash))) {
+                            $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                        }
                     }
 
                     if ($response->getHeader('eTag') && isset($response->getHeader('eTag')[0])) {
@@ -596,9 +600,9 @@ class Downloader
                 }
 
                 if ($this->compress) {
-                    $this->compressHashFile(strtoupper($hash));
-
-                    $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                    if ($this->compressHashFile(strtoupper($hash))) {
+                        $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                    }
                 }
 
                 $this->writeToLogFile('nochange.txt', strtoupper($hash));
@@ -622,6 +626,8 @@ class Downloader
 
                 $zip->close();
             }
+
+            return true;
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
             echo $e->getMessage();
 
