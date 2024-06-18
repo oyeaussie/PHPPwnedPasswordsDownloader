@@ -3,7 +3,7 @@
 include 'vendor/autoload.php';
 
 try {
-    $downloader = new \Hibp\Downloader();
+    $downloader = new \PHPPwnedPasswordsDownloader\Downloader();
 
     if (PHP_SAPI === 'cli') {
         array_splice($argv, 0, 1);//Remove index.php

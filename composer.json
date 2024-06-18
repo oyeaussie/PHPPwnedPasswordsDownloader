@@ -1,5 +1,5 @@
 {
-    "name": "oyeaussie/hibp",
+    "name": "oyeaussie/phppwnedpasswordsdownloader",
     "description": "PHP downloader for HaveIBeenPwned",
     "keywords": [
         "HaveIBeenPwned",
@@ -23,7 +23,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Hibp\\": "src/"
+            "PHPPwnedPasswordsDownloader\\": "src/"
         }
     },
     "require": {

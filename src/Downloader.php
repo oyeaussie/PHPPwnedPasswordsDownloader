@@ -1,6 +1,6 @@
 <?php
 
-namespace Hibp;
+namespace PHPPwnedPasswordsDownloader;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -353,7 +353,9 @@ class Downloader
 
             if ($this->check) {
                 try {
-                    if (!$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.txt')) {
+                    if (!$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.txt') &&
+                        !$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.zip')
+                    ) {
                         $this->writeToLogFile('checkfile.txt', $convertedHash);
                     }
                 } catch (UnableToCheckExistence | FilesystemException $e) {
@@ -606,13 +608,25 @@ class Downloader
 
     public function compressHashFile($file)
     {
-        $zip = new \ZipArchive;
+        try {
+            if ($this->localContent->fileExists('downloads/' . strtoupper($file) . '.txt')) {
+                if ($this->localContent->fileExists('downloads/' . strtoupper($file) . '.zip')) {
+                    $this->localContent->delete('downloads/' . strtoupper($file) . '.zip');
+                }
 
-        $zip->open(__DIR__ . '/../data/downloads/' . strtoupper($file) . '.zip', $zip::CREATE);
+                $zip = new \ZipArchive;
 
-        $zip->addFile(__DIR__ . '/../data/downloads/' . $file . '.txt', $file . '.txt');
+                $zip->open(__DIR__ . '/../data/downloads/' . strtoupper($file) . '.zip', $zip::CREATE);
 
-        $zip->close();
+                $zip->addFile(__DIR__ . '/../data/downloads/' . $file . '.txt', $file . '.txt');
+
+                $zip->close();
+            }
+        } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
+            echo $e->getMessage();
+
+            return false;
+        }
     }
 
     public function getHeaders($hash)
@@ -641,7 +655,9 @@ class Downloader
     protected function getEtagForHash($hash)
     {
         try {
-            if ($this->localContent->fileExists('downloads/' . strtoupper($hash) . '.txt')) {
+            if ($this->localContent->fileExists('downloads/' . strtoupper($hash) . '.txt') ||
+                $this->localContent->fileExists('downloads/' . strtoupper($hash) . '.zip')
+            ) {
                 if ($this->localContent->fileExists('etags/' . strtoupper($hash) . '.txt')) {
                     return $this->localContent->read('etags/' . strtoupper($hash) . '.txt');
                 }
