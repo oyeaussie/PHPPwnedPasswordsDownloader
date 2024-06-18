@@ -3,6 +3,10 @@
 namespace Hibp;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Pool;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\Local\LocalFilesystemAdapter;
@@ -26,9 +30,9 @@ class Downloader
 
     protected $resumeFrom = 0;
 
-    protected $remoteWebContent;
+    public $remoteWebContent;
 
-    protected $localContent;
+    public $localContent;
 
     protected $new = 0;
 
@@ -38,9 +42,15 @@ class Downloader
 
     protected $now;
 
-    protected $progress;
+    public $progress;
 
-    protected $force = false;
+    public $force = false;
+
+    public $concurrent = 0;
+
+    public $poolCount = 0;
+
+    public $lastReadHash;
 
     public function __construct($guzzleOptions = [])
     {
@@ -61,13 +71,31 @@ class Downloader
 
     public function run($arg = [])
     {
-        //Change execution time to 2Hrs as download could take a while.
-        if ((int) ini_get('max_execution_time') < 7200) {
-            set_time_limit(7200);
+        //Change execution time to 5Hrs as download could take a while. Change as needed
+        if ((int) ini_get('max_execution_time') < 18000) {
+            set_time_limit(18000);
         }
 
         if (count($arg) > 0) {
             $method = $arg[0];
+
+            if ((int) $method > 0) {//Perform concurrent Pool Requests
+                $this->concurrent = $method;
+
+                try {
+                    if ($this->localContent->fileExists('pool.txt')) {
+                        $this->localContent->delete('pool.txt');
+                    }
+                } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
+                    echo $e->getMessage();
+
+                    return false;
+                }
+
+                if (PHP_SAPI === 'cli') {
+                    $this->newProgress();
+                }
+            }
 
             if (count($arg) > 1) {
                 array_splice($arg, 0, 1);//Remove Method
@@ -247,9 +275,9 @@ class Downloader
 
                                 $convertedHash = $this->convert($hashCounter);
 
-                                if (!$convertedHash) {
-                                    throw new \Exception('Failed to convert counter ' . $hashCounter . ' to hash!');
-                                }
+                                // if (!$convertedHash) {
+                                //     throw new \Exception('Failed to convert counter ' . $hashCounter . ' to hash!' . PHP_EOL);
+                                // }
 
                                 $this->downloadHash(strtoupper(trim($convertedHash)));
 
@@ -297,6 +325,7 @@ class Downloader
             }
         }
 
+        //Run Counter
         for ($hashCounter = ($this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart; $hashCounter < $this->hashRangesEnd; $hashCounter++) {
             $this->hashCounter = $hashCounter;
 
@@ -306,7 +335,7 @@ class Downloader
                 if ($this->force) {
                     $this->writeToLogFile('converterror.txt', $hashCounter);
                 } else {
-                    throw new \Exception('Failed to convert counter ' . $hashCounter . ' to hash!');
+                    throw new \Exception('Failed to convert counter ' . $hashCounter . ' to hash!' . PHP_EOL);
                 }
 
                 continue;
@@ -323,7 +352,13 @@ class Downloader
                     return false;
                 }
             } else {
-                $this->downloadHash($convertedHash, $hashCounter);
+                if ($this->concurrent > 0) {
+                    $this->writeToLogFile('pool.txt', $convertedHash);
+
+                    $this->poolCount++;
+                } else {
+                    $this->downloadHash($convertedHash, $hashCounter);
+                }
             }
 
             if (PHP_SAPI === 'cli') {
@@ -331,6 +366,10 @@ class Downloader
 
                 if ($this->check) {
                     $message = 'Checking hash ' . strtoupper($convertedHash) . '... (' . ($hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
+                }
+
+                if ($this->concurrent > 0) {
+                    $message = 'Adding hash to pool ' . strtoupper($convertedHash) . '... (' . ($hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
                 }
 
                 $this->updateProgress($message);
@@ -382,7 +421,13 @@ class Downloader
                     }
 
                     foreach ($checkfile as $hash) {
-                        $this->downloadHash(strtoupper(trim($hash)));
+                        if ($this->concurrent > 0) {
+                            $this->writeToLogFile('pool.txt', $hash);
+
+                            $this->poolCount++;
+                        } else {
+                            $this->downloadHash(strtoupper(trim($hash)));
+                        }
 
                         if (PHP_SAPI === 'cli') {
                             $this->updateProgress();
@@ -396,12 +441,148 @@ class Downloader
             }
         }
 
+        if ($this->poolCount > 0) {
+            if (PHP_SAPI === 'cli') {
+                $this->progress->finish();
+
+                echo 'Added ' . $this->poolCount . ' hashes to pool! Downloading pool hashes...' . PHP_EOL;
+
+                $this->newProgress();
+            }
+
+            $this->downloadHashUsingPool();
+        }
+
         if (PHP_SAPI === 'cli') {
             $this->progress->finish();
         }
     }
 
     protected function downloadHash(string $hash, int $hashCounter = null)
+    {
+        $headers = $this->getHeaders($hash);
+
+        try {
+            $response = $this->remoteWebContent->request('GET', $this->apiUri . $hash, $headers);
+        } catch (\Exception $e) {
+            if ($this->force) {
+                $this->writeToLogFile('errors.txt', $hash);
+
+                return;
+            } else {
+                throw new \Exception('Failed to download file with ' . strtoupper($hash) . '. Error : ' . $e->getMessage());
+            }
+        }
+
+        $this->processResponse($response, $hash, $hashCounter);
+    }
+
+    protected function downloadHashUsingPool()
+    {
+        try {
+            if (!$this->localContent->fileExists('pool.txt')) {
+                echo 'Poolfile does not exists!.' . PHP_EOL;
+
+                return false;
+            }
+
+            $poolRequests = function() {
+                $poolFile = fopen(__DIR__ . '/../data/pool.txt', "r");
+
+                while(!feof($poolFile)) {
+                    $hash = trim(fgets($poolFile));
+
+                    if ($hash !== '') {
+                        $headers = $this->getHeaders($hash);
+
+                        yield $hash => new Request('GET', $this->apiUri . $hash, $headers['headers'] ?? []);
+
+                        $this->lastReadHash = $hash;
+                    }
+                }
+
+                fclose($poolFile);
+            };
+
+            $pool = new Pool($this->remoteWebContent, $poolRequests($this->poolCount), [
+                'concurrency'   => $this->concurrent,
+                'fulfilled'     => function (Response $response, $index) {
+                    $this->processResponse($response, $index);
+
+                    if (PHP_SAPI === 'cli') {
+                        $this->updateProgress();
+                    }
+                },
+                'rejected'      => function (RequestException $reason, $index) {
+                    $this->processResponse($reason, $index);
+                },
+            ]);
+
+            $promise = $pool->promise();
+
+            $promise->wait();
+        } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
+            echo $e->getMessage();
+
+            return false;
+        }
+    }
+
+    public function processResponse($response, $hash, $hashCounter = null)
+    {
+        if (!$hashCounter) {
+            if ($this->lastReadHash) {
+                $this->hashCounter = $this->convert(null, $this->lastReadHash);
+            } else {
+                $this->hashCounter = $this->convert(null, $hash);
+            }
+        }
+
+        if ($response instanceof RequestException) {
+            if ($this->force) {
+                $this->writeToLogFile('errors.txt', $hash);
+
+                return;
+            } else {
+                throw new \Exception('Failed to download file with ' . strtoupper($hash) . '. Error : ' . $response->getMessage());
+            }
+        } else {
+            if ($response->getStatusCode() === 200) {
+                try {
+                    $this->localContent->write('downloads/' . strtoupper($hash) . '.txt', $response->getBody()->getContents());
+
+                    if ($response->getHeader('eTag') && isset($response->getHeader('eTag')[0])) {
+                        $etag = $response->getHeader('eTag')[0];
+                    }
+                    $this->localContent->write('etags/' . strtoupper($hash) . '.txt', $etag);
+
+                    $this->new = $this->new + 1;
+
+                    if ($this->resume) {
+                        $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($this->hashCounter + 1)) ? 0 : $this->hashCounter);
+                    }
+
+                    $this->writeToLogFile('new.txt', $hash);
+                } catch (UnableToWriteFile | FilesystemException $e) {
+                    echo $e->getMessage();
+
+                    return false;
+                }
+
+                return true;
+            } else if ($response->getStatusCode() === 304) {
+                $this->noChange = $this->noChange + 1;
+
+                if ($this->resume) {
+                    $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($this->hashCounter + 1)) ? 0 : $this->hashCounter);
+                }
+
+                $this->writeToLogFile('nochange.txt', $hash);
+            }
+        }
+    }
+
+    public function getHeaders($hash)
     {
         $headers =
             [
@@ -421,59 +602,7 @@ class Downloader
             );
         }
 
-        try {
-            $response = $this->remoteWebContent->request('GET', $this->apiUri . $hash, $headers);
-        } catch (\Exception $e) {
-            if ($this->force) {
-                $this->writeToLogFile('errors.txt', $hash);
-
-                return;
-            } else {
-                throw new \Exception('Failed to download file with ' . strtoupper($hash) . '. Error : ' . $e->getMessage());
-            }
-        }
-
-        if ($response->getStatusCode() === 200) {
-            try {
-                $this->localContent->write('downloads/' . strtoupper($hash) . '.txt', $response->getBody()->getContents());
-
-                if ($response->getHeader('eTag') && isset($response->getHeader('eTag')[0])) {
-                    $etag = $response->getHeader('eTag')[0];
-                }
-                $this->localContent->write('etags/' . strtoupper($hash) . '.txt', $etag);
-
-                $this->new = $this->new + 1;
-
-                if ($this->resume) {
-                    if ($this->check === 2) {
-                        $hashCounter = $this->convert(null, $hash);
-                    }
-
-                    $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($hashCounter + 1)) ? 0 : $hashCounter);
-                }
-
-                $this->writeToLogFile('new.txt', $hash);
-            } catch (UnableToWriteFile | FilesystemException $e) {
-                echo $e->getMessage();
-
-                return false;
-            }
-
-            return true;
-        } else if ($response->getStatusCode() === 304) {
-            $this->noChange = $this->noChange + 1;
-
-            if ($this->resume) {
-                if ($this->check === 2) {
-                    $hashCounter = $this->convert(null, $hash);
-                    var_dump($hashCounter);die();
-                }
-
-                $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($hashCounter + 1)) ? 0 : $hashCounter);
-            }
-
-            $this->writeToLogFile('nochange.txt', $hash);
-        }
+        return $headers;
     }
 
     protected function getEtagForHash($hash)
@@ -519,16 +648,22 @@ class Downloader
     protected function writeToLogFile($file, $hash)
     {
         try {
-            if ($file === 'checkfile.txt') {
+            $separator = ',';
+
+            if ($file === 'checkfile.txt' || $file === 'pool.txt') {
+                if ($file === 'pool.txt') {
+                    $separator = PHP_EOL;
+                }
+
                 $fileLocation = $file;
             } else {
                 $fileLocation = 'logs/' . $this->now . '/' . $file;
             }
 
             if ($this->localContent->fileExists($fileLocation)) {
-                @file_put_contents(__DIR__ . '/../data/' . $fileLocation, $hash . ',', FILE_APPEND | LOCK_EX);
+                @file_put_contents(__DIR__ . '/../data/' . $fileLocation, $hash . $separator, FILE_APPEND | LOCK_EX);
             } else {
-                $this->localContent->write($fileLocation, $hash . ',');
+                $this->localContent->write($fileLocation, $hash . $separator);
             }
 
             return true;
@@ -546,7 +681,7 @@ class Downloader
         $this->progress->display();
     }
 
-    protected function updateProgress($message = null)
+    public function updateProgress($message = null)
     {
         if (!$message) {
             $message =
