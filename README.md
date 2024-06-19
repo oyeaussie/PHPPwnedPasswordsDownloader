@@ -14,6 +14,7 @@ Here're some of the project's best features:
 *   Download only updated hash using eTag.
 *   Resume Downloads if previous download gets stuck.
 *   Check for missing hash files and download missing hash files (with or without concurrency).
+*   Download NTLM hash file (default is SHA-1)
 *   Compress (zip) downloaded files on fly.
 *   Progress Bar to show the current progress of running process.
 *   Logging information of downloaded, skipped (eTag same) & errors on every run.
@@ -78,6 +79,13 @@ $ ls data/downloads/
 00000.txt  00001.txt  00002.txt  00003.txt  00004.txt
 ```
 Note: I am not sure how useful one, multiple, range, hashfile, intfile features are. If the developer of PwnedPasswords decides in the future to implement a feature where they send an email with updated hashes for end users to update, the end user can just dump those hashes in the hashfile.txt and issue one command to update them. I've already implemented the feature, maybe it can be useful to someone in some other case.
+
+* Download NTLM hash file instead of SHA-1 hash file
+
+```
+$ php index.php 25 ntlm compress
+```
+NOTE: ntlm argument is 2nd last argument before compress if compress argument is also passed. Otherwise ntlm argument should be the last one. The above command will download 25 concurrent NTLM hash files and compress them.
 
 * Compress the downloaded files
 
@@ -265,7 +273,12 @@ You can run the application in docker as well with the following command:
 ```
 docker run -it --volume=/tmp/hibp:/var/www/html/PHPPwnedPasswordsDownloader/data/ oyeaussie/phppwnedpasswordsdownloader
 ```
-Note: The above command will map your systems `/tmp/hibp` folder to `/var/www/html/PHPPwnedPasswordsDownloader/data/` folder. So, when you will run the `php install` command, it will download all hash files to your /tmp/hibp directory. Change the folder names of the volume to whatever you want.<br>
+Note: The above command will map your systems `/tmp/hibp` folder to `/var/www/html/PHPPwnedPasswordsDownloader/data/` folder. So, when you will run the `php index.php` command, it will download all hash files to your /tmp/hibp directory. Change the folder names of the volume to whatever you want.<br>
+```
+$ cd /var/www/html/PHPPwnedPasswordsDownloader/
+$ git pull
+```
+Note: Run git pull to update the code to latest version.<br>
 <br>
 I have also added the DockerFile in the docker folder, so you can build the image the way you want to.
 

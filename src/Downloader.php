@@ -20,6 +20,8 @@ class Downloader
 {
     protected $apiUri = 'https://api.pwnedpasswords.com/range/';
 
+    protected $ntlm = false;
+
     protected $hashCounter;
 
     protected $hashRangesStart = 0;
@@ -89,8 +91,18 @@ class Downloader
         }
 
         if (count($arg) > 0) {
-            if (strtolower(array_values($arg)[array_key_last($arg)]) === 'compress') {
+            $arg = array_values($arg);
+
+            if (strtolower($arg[array_key_last($arg)]) === 'compress') {
                 $this->compress = true;
+
+                if (isset($arg[array_key_last($arg) - 1]) &&
+                    strtolower($arg[array_key_last($arg) - 1]) === 'ntlm'
+                ) {
+                    $this->ntlm = true;
+                }
+            } else if (strtolower($arg[array_key_last($arg)] === 'ntlm')) {
+                $this->ntlm = true;
             }
 
             $method = strtolower($arg[0]);
@@ -117,7 +129,13 @@ class Downloader
                 array_splice($arg, 0, 1);//Remove Method
             }
 
-            if ($method === 'force') {
+            if ($method === 'ntlm') {
+                $this->ntlm = true;
+
+                if (PHP_SAPI === 'cli') {
+                    $this->newProgress();
+                }
+            } else if ($method === 'force') {
                 $this->force = true;
 
                 if (PHP_SAPI === 'cli') {
@@ -355,7 +373,7 @@ class Downloader
 
                     return false;
                 }
-            } else if ($this->concurrent === 0) {
+            } else if ($this->concurrent === 0 && !$this->ntlm) {
                 echo 'Unknown argument ' . $method . '!' . PHP_EOL;
 
                 return false;
@@ -515,7 +533,7 @@ class Downloader
         $headers = $this->getHeaders($hash);
 
         try {
-            $response = $this->remoteWebContent->request('GET', $this->apiUri . $hash, $headers);
+            $response = $this->remoteWebContent->request('GET', $this->apiUri . $hash . ($this->ntlm === true ? '?mode=ntlm' : ''), $headers);
         } catch (\Exception $e) {
             if ($this->force) {
                 $this->writeToLogFile('errors.txt', $hash);
@@ -547,7 +565,7 @@ class Downloader
                     if ($hash !== '') {
                         $headers = $this->getHeaders($hash);
 
-                        yield $hash => new Request('GET', $this->apiUri . $hash, $headers['headers'] ?? []);
+                        yield $hash => new Request('GET', $this->apiUri . $hash . ($this->ntlm === true ? '?mode=ntlm' : ''), $headers['headers'] ?? []);
 
                         $this->lastReadHash = $hash;
                     }
