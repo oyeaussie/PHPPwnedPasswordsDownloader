@@ -78,6 +78,16 @@ class Downloader
             set_time_limit(18000);
         }
 
+        try {
+            if ($this->localContent->fileExists('resume.txt')) {
+                $this->resumeFrom = $this->localContent->read('resume.txt');
+            }
+        } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
+            echo $e->getMessage();
+
+            return false;
+        }
+
         if (count($arg) > 0) {
             if (strtolower(array_values($arg)[array_key_last($arg)]) === 'compress') {
                 $this->compress = true;
@@ -356,20 +366,8 @@ class Downloader
             }
         }
 
-        if ($this->resume) {
-            try {
-                if ($this->localContent->fileExists('resume.txt')) {
-                    $this->resumeFrom = $this->localContent->read('resume.txt');
-                }
-            } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
-                echo $e->getMessage();
-
-                return false;
-            }
-        }
-
         //Run Counter
-        for ($hashCounter = ($this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart; $hashCounter < $this->hashRangesEnd; $hashCounter++) {
+        for ($hashCounter = ($this->resume && $this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart; $hashCounter < $this->hashRangesEnd; $hashCounter++) {
             $this->hashCounter = $hashCounter;
 
             $convertedHash = $this->convert($hashCounter);
@@ -769,7 +767,7 @@ class Downloader
 
     protected function newProgress($message = 'Downloading...')
     {
-        $this->progress = new Bar($message, $this->hashRangesEnd);
+        $this->progress = new Bar($message, ($this->resume && $this->resumeFrom > 0) ? ($this->hashRangesEnd - $this->resumeFrom) : $this->hashRangesEnd);
 
         $this->progress->display();
     }
