@@ -556,6 +556,8 @@ class Downloader
                 fclose($poolFile);
             };
 
+            $this->hashCounter = 0;
+
             $pool = new Pool($this->remoteWebContent, $poolRequests($this->poolCount), [
                 'concurrency'   => $this->concurrent,
                 'fulfilled'     => function (Response $response, $index) {
@@ -564,6 +566,8 @@ class Downloader
                     if (PHP_SAPI === 'cli') {
                         $this->updateProgress();
                     }
+
+                    $this->hashCounter = $this->hashCounter + 1;
                 },
                 'rejected'      => function (RequestException $reason, $index) {
                     $this->processResponse($reason, $index);
@@ -584,9 +588,9 @@ class Downloader
     {
         if (!$hashCounter) {
             if ($this->lastReadHash) {
-                $this->hashCounter = $this->convert(null, $this->lastReadHash);
+                $hashCounter = $this->convert(null, $this->lastReadHash);
             } else {
-                $this->hashCounter = $this->convert(null, $hash);
+                $hashCounter = $this->convert(null, $hash);
             }
         }
 
@@ -617,7 +621,7 @@ class Downloader
                     $this->new = $this->new + 1;
 
                     if ($this->resume) {
-                        $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($this->hashCounter + 1)) ? 0 : $this->hashCounter);
+                        $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($hashCounter + 1)) ? 0 : $hashCounter);
                     }
 
                     $this->writeToLogFile('new.txt', strtoupper($hash));
@@ -632,7 +636,7 @@ class Downloader
                 $this->noChange = $this->noChange + 1;
 
                 if ($this->resume) {
-                    $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($this->hashCounter + 1)) ? 0 : $this->hashCounter);
+                    $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($hashCounter + 1)) ? 0 : $hashCounter);
                 }
 
                 if ($this->compress) {
