@@ -259,6 +259,19 @@ Flysystem - https://github.com/thephpleague/flysystem<br>
 PHP Cli Tools - https://github.com/wp-cli/php-cli-tools<br>
 PwnedPasswordsDownloader - https://github.com/HaveIBeenPwned/PwnedPasswordsDownloader (main source of inspiration)
 
+<h2>Docker:</h2>
+
+You can run the application in docker as well with the following command:
+```
+docker run -it --volume=/tmp/hibp:/var/www/html/PHPPwnedPasswordsDownloader/data/ oyeaussie/phppwnedpasswordsdownloader
+```
+Note: The above command will map your systems `/tmp/hibp` folder to `/var/www/html/PHPPwnedPasswordsDownloader/data/` folder. So, when you will run the `php install` command, it will download all hash files to your /tmp/hibp directory. Change the folder names of the volume to whatever you want.<br>
+<br>
+I have also added the DockerFile in the docker folder, so you can build the image the way you want to.
+
+<h2>Issues/Discussions/New features:</h2>
+Feel free to open an issue in case of a bug or to discuss anything related to the tool or to add a new feature.
+
 <h2>Buy Me A Coffee/Beer:</h2>
 Time is valuable. If you feel this project has been helpful and it has saved your time worth a coffee or a beer...<br><br>
 <a href="https://www.buymeacoffee.com/oyeaussie" target="_blank"><img src="https://github.com/oyeaussie/assets/blob/main/buymecoffee.jpg" alt="Buy Me A Coffee"></a>
