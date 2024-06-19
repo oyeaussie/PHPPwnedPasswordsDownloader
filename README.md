@@ -1,4 +1,7 @@
-<h2>Features</h2>
+<h2>Description:</h2>
+A tool to download pwned password hash files from their API written in PHP. (https://haveibeenpwned.com/Passwords)
+
+<h2>Features:</h2>
 
 Here're some of the project's best features:
 *   PHP Cli tool, run from CLI using php command.
@@ -247,3 +250,19 @@ Checking hash 00063... (100/100)  100% [========================================
 Check found no missing hashes!
 ```
 The above example shows that we resume download from where the connection broke. The final result should be 100 has files downloaded, which we can confirm by check argument and ls data/downloads/ | wc -l command. To demonstrate the above feature, I have changed the $hashRangesEnd from 1024 * 1024 to 100, so we only download 100 hash files. The original value will be set to 1024 * 1024.
+
+<h2>Credits:</h2>
+Thanks to the following projects for their great work. Without them, this project would not be possible.<br>
+Composer<br>
+Guzzle - https://github.com/guzzle/guzzle<br>
+Flysystem - https://github.com/thephpleague/flysystem<br>
+PHP Cli Tools - https://github.com/wp-cli/php-cli-tools<br>
+PwnedPasswordsDownloader - https://github.com/HaveIBeenPwned/PwnedPasswordsDownloader (main source of inspiration)
+
+<h2>Buy Me A Coffee/Beer:</h2>
+Time is valuable. If you feel this project has been helpful and it has saved your time worth a coffee or a beer...<br><br>
+<a href="https://www.buymeacoffee.com/oyeaussie" target="_blank"><img src="https://github.com/oyeaussie/assets/blob/main/buymecoffee.jpg" alt="Buy Me A Coffee"></a>
+<a href="https://github.com/sponsors/oyeaussie?frequency=one-time&sponsor=oyeaussie&amount=10" target="_blank"><img src="https://github.com/oyeaussie/assets/blob/main/buymebeer.jpg" alt="Buy Me A Beer"></a>
+
+<h2>Hire me:</h2>
+If you would like to develop a PHP application that requires expert level programming. I am available for hire. Message me and we can discuss further.
