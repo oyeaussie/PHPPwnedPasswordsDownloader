@@ -412,6 +412,9 @@ class Downloader
                 if ($this->check) {
                     $message = 'Checking hash ' . strtoupper($convertedHash) . '... (' . ($hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
                 }
+                if ($this->concurrent > 0) {
+                    $message = 'Adding hash to pool ' . strtoupper($convertedHash) . '... (' . ($hashCounter + 1) . '/' . $this->hashRangesEnd . ')';
+                }
 
                 $this->updateProgress($message);
             }
