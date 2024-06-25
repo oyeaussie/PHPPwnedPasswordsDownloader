@@ -126,12 +126,12 @@ class Help
         $help['lookup'] =
             [
                 ['%yLOOKUP%w','', ''],
-                ['lookup', '--type=password,', 'Lookup password in the downloaded hash files using default settings'],
+                ['lookup', '--search=password,', 'Lookup password in the downloaded hash files using default settings'],
                 ['','--ntlm=false', ''],
                 ['','--search-method=stream', 'Options for search method: array, cache, index, stream, string'],
                 ['lookup --cache-host', '-', 'Hostname of caching engine. If not defined, default hostname is localhost and default port is caching engine\'s default port (if any)'],
                 ['lookup --ntlm=true', '', 'Lookup password/hash in the downloaded hash files using NTLM'],
-                ['lookup --type=hash', 'password', 'Lookup hash instead of password'],
+                ['lookup --search=hash', 'password', 'Lookup hash instead of password'],
                 ['', '', '%rNOTE: Password is not recorded anywhere%w'],
                 ['', '', '%rTerminal echo is masked to avoid shoulder surfers to see the entered password%w'],
             ];

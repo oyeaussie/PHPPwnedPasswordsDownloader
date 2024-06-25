@@ -40,7 +40,7 @@ class Lookup extends Base
         $this->settings = array_merge(
             [
                 '--ntlm'            => false,
-                '--type'            => 'password',
+                '--search'          => 'password',
                 '--search-method'   => 'stream'
             ],
             $settings
@@ -49,17 +49,21 @@ class Lookup extends Base
 
     public function search()
     {
+        if (isset($this->settings['--ntlm']) && (bool) $this->settings['--ntlm']) {
+            $this->isNtlm = true;
+        }
+
         if (!method_exists($this, 'search' . ucfirst($this->settings['--search-method']))) {
             \cli\line('%rUnknown lookup method%w');
 
             exit;
         }
 
-        echo 'Enter ' . ucfirst($this->settings['--type']) . ': ';
+        echo 'Enter ' . ucfirst($this->settings['--search']) . ': ';
 
         $cliHandle = fopen('php://stdin','r');
 
-        if (strtolower($this->settings['--type']) === 'password') {
+        if (strtolower($this->settings['--search']) === 'password') {
             system("stty -icanon");
             system('stty -echo');
 
@@ -86,7 +90,7 @@ class Lookup extends Base
             system('stty echo');
 
             echo PHP_EOL;
-        } else if (strtolower($this->settings['--type']) === 'hash') {
+        } else if (strtolower($this->settings['--search']) === 'hash') {
             $input = rtrim(fgets($cliHandle), "\r\n");
 
             $hash = strtoupper(trim($input));
@@ -149,11 +153,7 @@ class Lookup extends Base
         $cachedHash = $this->cache->redis->get($hashKey);
 
         if ($cachedHash) {
-            $this->hashFoundArr['hashFile'] = $hashFileName . '.txt';
-            $this->hashFoundArr['hash'] = trim($hash);
-            $this->hashFoundArr['count'] = trim($cachedHash);
-            $this->hashFoundArr['cached'] = true;
-            $this->hashFoundArr['indexed'] = false;
+            $this->addToHashFoundArr($hashFileName . '.txt', trim(substr($hash, 5, null)), trim($cachedHash), false, true);
 
             $this->setMicroTimer('searchIndexEnd', true);
 
@@ -174,13 +174,12 @@ class Lookup extends Base
 
                 $this->setMicroTimer('searchIndexStart', true);
 
-                $hashFileCount = $this->localContent->read('index/' . $hashFileName . '/' . substr($hash, 5, null) . '.txt');
-
-                $this->hashFoundArr['hashFile'] = $hashFileName . '.txt';
-                $this->hashFoundArr['hash'] = trim($hash);
-                $this->hashFoundArr['count'] = trim($hashFileCount);
-                $this->hashFoundArr['cached'] = false;
-                $this->hashFoundArr['indexed'] = true;
+                $this->addToHashFoundArr(
+                    $hashFileName . '.txt',
+                    trim(substr($hash, 5, null)),
+                    trim($this->localContent->read('index/' . $hashFileName . '/' . substr($hash, 5, null) . '.txt')),
+                    true
+                );
 
                 $this->setMicroTimer('searchIndexEnd', true);
 
@@ -222,11 +221,7 @@ class Lookup extends Base
                         return false;
                     } else {
                         if ($hashFileName . $fileHash[0] === $hash) {
-                            $this->hashFoundArr['hashFile'] = $hashFileName . '.txt';
-                            $this->hashFoundArr['hash'] = trim($fileHash[0]);
-                            $this->hashFoundArr['count'] = trim($fileHash[1]);
-                            $this->hashFoundArr['cached'] = false;
-                            $this->hashFoundArr['indexed'] = false;
+                            $this->addToHashFoundArr($hashFileName . '.txt', trim($fileHash[0]), trim($fileHash[1]));
 
                             break;
                         }
@@ -261,11 +256,7 @@ class Lookup extends Base
                 $fileHash = explode(':', $stringSearch[array_key_first($stringSearch)]);
 
                 if ($fileHash[0] === substr($hash, 5, null)) {
-                    $this->hashFoundArr['hashFile'] = $hashFileName . '.txt';
-                    $this->hashFoundArr['hash'] = trim($fileHash[0]);
-                    $this->hashFoundArr['count'] = trim($fileHash[1]);
-                    $this->hashFoundArr['cached'] = false;
-                    $this->hashFoundArr['indexed'] = false;
+                    $this->addToHashFoundArr($hashFileName . '.txt', trim($fileHash[0]), trim($fileHash[1]));
                 }
             }
 
@@ -302,11 +293,7 @@ class Lookup extends Base
                         return false;
                     } else {
                         if ($hashFileName . $fileHash[0] === $hash) {
-                            $this->hashFoundArr['hashFile'] = $hashFileName . '.txt';
-                            $this->hashFoundArr['hash'] = trim($fileHash[0]);
-                            $this->hashFoundArr['count'] = trim($fileHash[1]);
-                            $this->hashFoundArr['cached'] = false;
-                            $this->hashFoundArr['indexed'] = false;
+                            $this->addToHashFoundArr($hashFileName . '.txt', trim($fileHash[0]), trim($fileHash[1]));
 
                             break;
                         }
@@ -324,6 +311,15 @@ class Lookup extends Base
         }
 
         return false;
+    }
+
+    protected function addToHashFoundArr($hashFile, $hash, $count, $indexed = false, $cached = false)
+    {
+        $this->hashFoundArr['hashFile'] = $hashFile;
+        $this->hashFoundArr['hash'] = $hash;
+        $this->hashFoundArr['count'] = $count;
+        $this->hashFoundArr['indexed'] = $indexed;
+        $this->hashFoundArr['cached'] = $cached;
     }
 
     protected function showFoundDetails()
@@ -380,7 +376,7 @@ class Lookup extends Base
 
     protected function getHeaders()
     {
-        return ['Hash', 'Hash File', 'Method', 'Count', 'NTLM', 'Cached', 'Indexed', 'Time (s)', 'Memory (kb)'];
+        return ['Hash', 'Hash File', 'Method', 'Count', 'NTLM', 'Indexed', 'Cached', 'Time (s)', 'Memory (kb)'];
     }
 
     protected function getRow()
@@ -393,8 +389,8 @@ class Lookup extends Base
                     ucfirst($this->settings['--search-method']),
                     $this->hashFoundArr['count'],
                     ($this->isNtlm === true) ? 'Yes' : 'No',
-                    ($this->hashFoundArr['cached'] === true) ? 'Yes' : 'No',
                     ($this->hashFoundArr['indexed'] === true) ? 'Yes' : 'No',
+                    ($this->hashFoundArr['cached'] === true) ? 'Yes' : 'No',
                     $this->hashFoundArr['timer'][1]['difference'],
                     $this->hashFoundArr['timer'][1]['memoryusage']
                 ]
