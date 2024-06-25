@@ -2,9 +2,9 @@
 
 include 'vendor/autoload.php';
 
-
 try {
-    echo 'This is a CLI tool to download, index, cache, sort and lookup pwned password. Type --help for list of commands.' . PHP_EOL . PHP_EOL;
+    \cli\line('%WThis is a CLI tool to download, index, cache, sort and lookup pwned password. Type --help for list of commands.%w');
+    \cli\line('');
 
     $method = null;
 
@@ -58,12 +58,16 @@ function processArguments($argv, &$method)
     foreach ($argv as $key => $args) {
         if (!str_contains($args, '--')) {
             throwInvalidArgumentException($args);
+
+            exit;
         }
 
         $args = explode('=', $args);
 
         if (count($args) === 1 && !in_array('--help', $args)) {
             throwInvalidArgumentException($args[0]);
+
+            exit;
         } else if (count($args) === 1 && in_array('--help', $args)) {
             $arguments['--help'] = true;
 
@@ -79,5 +83,5 @@ function processArguments($argv, &$method)
 
 function throwInvalidArgumentException($arg)
 {
-    throw new \Exception('Incorrect argument format of argument ' . $arg . '. Argument format is --{argument_name}={argument_value}. See --help for more details.');
+    \cli\line('%RIncorrect argument format of argument ' . $arg . '. Argument format is --{argument_name}={argument_value}. See --help for more details.%w');
 }
