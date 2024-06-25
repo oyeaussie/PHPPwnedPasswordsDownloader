@@ -106,7 +106,7 @@ class Download extends Base
             }
 
             $this->settings['--resume'] = false;
-            // $this->settings['--async'] = false;
+            $this->settings['--async'] = false;
 
             if ($this->settings['--get'] === 'one') {
                 if (!$this->checkHashLength($this->settings['--hashes'])) {

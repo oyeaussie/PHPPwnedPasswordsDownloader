@@ -429,15 +429,4 @@ class Lookup extends Base
 
         return false;
     }
-
-    // public function deCompressHashFile($filePath)
-    // {
-    //     $this->zip->open(__DIR__ . '/../data/' . $filePath);
-
-    //     if (!$this->zip->extractTo(__DIR__ . '/../data/downloads/')) {
-    //         echo 'Error unzipping file. Please download hash file again.';
-
-    //         return false;
-    //     }
-    // }
 }
