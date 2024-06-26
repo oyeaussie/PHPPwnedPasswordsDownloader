@@ -3,7 +3,7 @@
 include 'vendor/autoload.php';
 
 try {
-    \cli\line('%WThis is a CLI tool to download, index, cache, sort and lookup pwned password. Type --help for list of commands.%w');
+    \cli\line('%wThis is a CLI tool to download, index, cache, sort and lookup pwned password. Type --help for list of commands.%w');
     \cli\line('');
 
     $method = null;

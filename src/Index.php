@@ -233,17 +233,12 @@ class Index extends Base
         }
     }
 
-    protected function convert(int $counter)
-    {
-        return strtoupper(substr(bin2hex(pack('N', $counter)), 3));
-    }
-
     protected function newProgress($processType = 'Indexing...')
     {
         $this->hashFilesCount = iterator_count(new FilesystemIterator(__DIR__ . '/../data/downloads/', FilesystemIterator::SKIP_DOTS));
 
         if ($this->hashFilesCount === 0) {
-            \cli\line('%rDownloads directory empty. Nothing to sort.%w');
+            \cli\line('%rDownloads directory empty. Nothing to index.%w');
 
             exit;
         }

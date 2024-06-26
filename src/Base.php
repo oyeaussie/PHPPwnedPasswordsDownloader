@@ -62,7 +62,7 @@ abstract class Base
                 return true;
             }
         } catch (\throwable | UnableToCheckExistence $e) {
-            echo $e->getMessage();
+            \cli\line('%r' . $e->getMessage() . '%w');
 
             return false;
         }
@@ -73,9 +73,9 @@ abstract class Base
         $this->zip->open(__DIR__ . '/../data/' . $filePath);
 
         if (!$this->zip->extractTo(__DIR__ . '/../data/downloads/')) {
-            echo 'Error unzipping file. Please download hash file again.';
+            \cli\line('%rError unzipping file at path :' . $filePath . '%w');
 
-            return false;
+            exit;
         }
     }
 
@@ -128,5 +128,30 @@ abstract class Base
 
             exit;
         }
+    }
+
+    protected function convert(int $counter = null, string $hex = null)
+    {
+        if ($hex !== null) {
+            if (strlen($hex) === 5) {
+                $hex = '000' . $hex;
+            }
+
+            $unpacked = unpack('N', hex2bin(strtoupper($hex)));
+
+            if ($unpacked && count($unpacked) === 1) {
+                return $unpacked[1];
+            }
+
+            \cli\line('%rCould not convert hex to integer! Please provide correct hash.%w');
+
+            exit;
+        }
+
+        if ($counter !== null) {
+            return strtoupper(substr(bin2hex(pack('N', $counter)), 3));
+        }
+
+        return false;
     }
 }
