@@ -89,6 +89,18 @@ class Download extends Base
             exit;
         }
 
+        if ($this->settings['--async'] && (int) $this->settings['--async'] > 0) {
+            try {
+                if ($this->localContent->fileExists('pool.txt')) {
+                    $this->localContent->delete('pool.txt');
+                }
+            } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
+                \cli\line('%r' . $e->getMessage() . '%w');
+
+                exit;
+            }
+        }
+
         if ($this->settings['--get'] &&
             ($this->settings['--get'] === 'one' ||
              $this->settings['--get'] === 'count' ||
@@ -201,7 +213,6 @@ class Download extends Base
                             return false;
                         }
 
-                        $this->settings['--resume'] = false;
                         $this->hashRangesStart = $unPackedStart;
                         $this->hashRangesEnd = $unPackedEnd + 1;
                     } else {
@@ -285,7 +296,7 @@ class Download extends Base
 
                         $intfile = trim(trim($intfile), ',');
                     } else {
-                        \cli\line('%rIntfile does not exists! Please add comma separated hash to ' . $intfile . ' in folder data.' . '%w');
+                        \cli\line('%rIntfile does not exists! Please add comma separated integers to ' . $intfile . ' in folder data.' . '%w');
 
                         return false;
                     }
@@ -359,18 +370,6 @@ class Download extends Base
                 $this->check = 2;
 
                 $this->settings['--resume'] = true;
-
-                if ($this->settings['--async'] && (int) $this->settings['--async'] > 0) {
-                    try {
-                        if ($this->localContent->fileExists('pool.txt')) {
-                            $this->localContent->delete('pool.txt');
-                        }
-                    } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
-                        \cli\line('%r' . $e->getMessage() . '%w');
-
-                        exit;
-                    }
-                }
             }
 
             $this->newProgress('Checking...');
@@ -379,7 +378,10 @@ class Download extends Base
         }
 
         //Run Counter
-        for ($hashCounter = ($this->settings['--resume'] && $this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart; $hashCounter < $this->hashRangesEnd; $hashCounter++) {
+        for ($hashCounter = ($this->settings['--resume'] && $this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart;
+             $hashCounter < $this->hashRangesEnd;
+             $hashCounter++
+         ) {
             $this->hashCounter = $hashCounter;
 
             $convertedHash = $this->convert($hashCounter);
@@ -396,8 +398,9 @@ class Download extends Base
 
             if ($this->check) {
                 try {
-                    if (!$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.txt') &&
-                        !$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.zip')
+                    if ((!$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.txt') &&
+                        !$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.zip')) ||
+                        !$this->localContent->fileExists('etags/' . strtoupper($convertedHash) . '.txt')
                     ) {
                         $this->writeToFile('checkfile.txt', $convertedHash);
                     }
@@ -719,29 +722,6 @@ class Download extends Base
             \cli\line('%r' . $e->getMessage() . '%w');
 
             exit;
-        }
-
-        return false;
-    }
-
-    protected function convert(int $counter = null, string $hex = null)
-    {
-        if ($hex !== null) {
-            if (strlen($hex) === 5) {
-                $hex = '000' . $hex;
-            }
-
-            $unpacked = unpack('N', hex2bin(strtoupper($hex)));
-
-            if ($unpacked && count($unpacked) === 1) {
-                return $unpacked[1];
-            }
-
-            throw new \Exception('Could not convert hex to integer! Please provide correct hash.');
-        }
-
-        if ($counter !== null) {
-            return strtoupper(substr(bin2hex(pack('N', $counter)), 3));
         }
 
         return false;
