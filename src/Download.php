@@ -41,9 +41,9 @@ class Download extends Base
 
     public function __construct(array $settings = [], array $guzzleOptions = [])
     {
-        $this->remoteWebContent = new Client($guzzleOptions);
-
         parent::__construct();
+
+        $this->remoteWebContent = new Client($guzzleOptions);
 
         $this->settings = array_merge(
             [
@@ -54,17 +54,23 @@ class Download extends Base
                 '--compress'            => false,
                 '--type'                => 'sha',
                 '--async'               => false,
+                '--update-source'       => 'api',
+                '--download-data'       => 'true'
             ],
             $settings
         );
 
-        if (isset($this->settings['--sort']) && (bool) $this->settings['--sort'] === true) {
+        if (isset($this->settings['--type']) && $this->settings['--type'] === 'ntlm') {
+            $this->hashDir = 'ntlm/';
+            $this->hashEtagsDir = 'ntlmetags/';
+        }
+        if (isset($this->settings['--sort']) && (bool) $this->settings['--sort']) {
             $this->sort = new Sort($this->settings);
         }
-        if (isset($this->settings['--cache']) && (bool) $this->settings['--cache'] === true) {
+        if (isset($this->settings['--cache']) && (bool) $this->settings['--cache']) {
             $this->cache = new Cache($this->settings);
         }
-        if (isset($this->settings['--index']) && (bool) $this->settings['--index'] === true) {
+        if (isset($this->settings['--index']) && (bool) $this->settings['--index']) {
             $this->index = new Index($this->settings);
         }
 
@@ -79,6 +85,25 @@ class Download extends Base
 
     public function run()
     {
+        if (isset($this->settings['--update-source']) &&
+            $this->settings['--update-source'] !== 'api'
+        ) {
+            if (!isset($this->settings['--update-since'])) {
+                try {
+                    $this->settings['--update-since'] = $this->localContent->read('lastupdate.txt');
+                } catch (UnableToReadFile | FilesystemException $e) {
+                    \cli\line('%rlastupdate.txt file is missing%w');
+                    \cli\line('%rEither add lastupdate.txt file with unix time of last update or provide it via argument --update-since={unix_time}%w');
+
+                    exit;
+                }
+            }
+
+            $this->updateFromDifferentSource();
+
+            return;
+        }
+
         try {
             if ($this->localContent->fileExists('resume.txt')) {
                 $this->resumeFrom = $this->localContent->read('resume.txt');
@@ -398,10 +423,14 @@ class Download extends Base
 
             if ($this->check) {
                 try {
-                    if ((!$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.txt') &&
-                        !$this->localContent->fileExists('downloads/' . strtoupper($convertedHash) . '.zip')) ||
-                        !$this->localContent->fileExists('etags/' . strtoupper($convertedHash) . '.txt')
-                    ) {
+                    if (isset($this->settings['--download-data']) && $this->settings['--download-data'] === 'true') {
+                        if ((!$this->localContent->fileExists($this->hashDir . strtoupper($convertedHash) . '.txt') &&
+                             !$this->localContent->fileExists($this->hashDir . strtoupper($convertedHash) . '.zip')) ||
+                            !$this->localContent->fileExists($this->hashEtagsDir . strtoupper($convertedHash) . '.txt')
+                        ) {
+                            $this->writeToFile('checkfile.txt', $convertedHash);
+                        }
+                    } else if (!$this->localContent->fileExists($this->hashEtagsDir . strtoupper($convertedHash) . '.txt')) {
                         $this->writeToFile('checkfile.txt', $convertedHash);
                     }
                 } catch (UnableToCheckExistence | FilesystemException $e) {
@@ -512,6 +541,16 @@ class Download extends Base
 
         $this->finishProgress();
 
+        if ($this->settings['--get'] === 'all' || (bool) $this->settings['--check-download']) {
+            try {
+                $this->localContent->write('lastupdate.txt', time());
+            } catch (UnableToWriteFile | FilesystemException $e) {
+                \cli\line('%r' . $e->getMessage() . '%w');
+
+                exit;
+            }
+        }
+
         return true;
     }
 
@@ -527,7 +566,8 @@ class Download extends Base
 
                 return;
             } else {
-                \cli\line('%rFailed to download file with ' . strtoupper($hash) . '. Error : ' . $e->getMessage() . '%w');
+                \cli\line('%rFailed to download file with ' . strtoupper($hash));
+                \cli\line('%rError : ' . $e->getMessage() . '%w');
 
                 exit;
             }
@@ -573,6 +613,10 @@ class Download extends Base
             };
 
             $this->hashCounter = 0;
+
+            if (($this->settings['--resume'] && $this->resumeFrom > 0)) {
+                $this->hashRangesEnd = $this->hashRangesEnd - $this->resumeFrom;
+            }
 
             $pool = new Pool($this->remoteWebContent, $poolRequests($this->poolCount), [
                 'concurrency'   => (int) $this->settings['--async'],
@@ -638,12 +682,14 @@ class Download extends Base
 
             if ($response->getStatusCode() === 200) {
                 try {
-                    $this->localContent->write('downloads/' . strtoupper($hash) . '.txt', $response->getBody()->getContents());
+                    if (isset($this->settings['--download-data']) && $this->settings['--download-data'] === 'true') {
+                        $this->localContent->write($this->hashDir . strtoupper($hash) . '.txt', $response->getBody()->getContents());
+                    }
 
                     if ($response->getHeader('eTag') && isset($response->getHeader('eTag')[0])) {
                         $etag = $response->getHeader('eTag')[0];
                     }
-                    $this->localContent->write('etags/' . strtoupper($hash) . '.txt', $etag);
+                    $this->localContent->write($this->hashEtagsDir . strtoupper($hash) . '.txt', $etag);
 
                     $this->new = $this->new + 1;
 
@@ -676,8 +722,8 @@ class Download extends Base
             }
 
             if ((bool) $this->settings['--compress']) {
-                if ($this->compressHashFile('downloads/' . strtoupper($hash) . '.txt')) {
-                    $this->localContent->delete('downloads/' . strtoupper($hash) . '.txt');
+                if ($this->compressHashFile($this->hashDir . strtoupper($hash) . '.txt')) {
+                    $this->localContent->delete($this->hashDir . strtoupper($hash) . '.txt');
                 }
             }
         }
@@ -711,11 +757,11 @@ class Download extends Base
     protected function getEtagForHash($hash)
     {
         try {
-            if ($this->localContent->fileExists('downloads/' . strtoupper($hash) . '.txt') ||
-                $this->localContent->fileExists('downloads/' . strtoupper($hash) . '.zip')
+            if ($this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.txt') ||
+                $this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.zip')
             ) {
-                if ($this->localContent->fileExists('etags/' . strtoupper($hash) . '.txt')) {
-                    return $this->localContent->read('etags/' . strtoupper($hash) . '.txt');
+                if ($this->localContent->fileExists($this->hashEtagsDir . strtoupper($hash) . '.txt')) {
+                    return $this->localContent->read($this->hashEtagsDir . strtoupper($hash) . '.txt');
                 }
             }
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
@@ -725,5 +771,19 @@ class Download extends Base
         }
 
         return false;
+    }
+
+    protected function updateFromDifferentSource()
+    {
+        try {
+            $response = $this->remoteWebContent->request('POST', $this->settings['--update-source'], ['update-since' => $this->settings['--update-since']]);
+        } catch (\Exception $e) {
+            \cli\line('%rFailed to download update file from ' . $this->settings['--update-source']);
+            \cli\line('%rError : ' . $e->getMessage() . '%w');
+
+            exit;
+        }
+
+        var_dump($response);die();
     }
 }

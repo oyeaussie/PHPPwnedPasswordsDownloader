@@ -66,18 +66,18 @@ class Cache extends Base
 
         if (isset($this->settings['--hashes'])) {//Just one hash file.
             try {
-                $path = 'downloads/' . strtoupper($this->settings['--hashes']) . '.txt';
+                $path = $this->hashDir . strtoupper($this->settings['--hashes']) . '.txt';
 
                 try {
                     if ($this->localContent->fileExists($path)) {
                         $hashFileContent = $this->localContent->readStream($path);
-                    } else if ($this->localContent->fileExists('downloads/' . strtoupper($this->settings['--hashes']) . '.zip')) {
-                        $this->deCompressHashFile('downloads/' . strtoupper($this->settings['--hashes']) . '.zip');
+                    } else if ($this->localContent->fileExists($this->hashDir . strtoupper($this->settings['--hashes']) . '.zip')) {
+                        $this->deCompressHashFile($this->hashDir . strtoupper($this->settings['--hashes']) . '.zip');
 
                         if ($this->localContent->fileExists($path)) {
                             $hashFileContent = $this->localContent->readStream($path);
 
-                            $this->localContent->delete('downloads/' . strtoupper($this->settings['--hashes']) . '.txt');
+                            $this->localContent->delete($this->hashDir . strtoupper($this->settings['--hashes']) . '.txt');
                         }
                     }
                 } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
@@ -111,7 +111,7 @@ class Cache extends Base
 
             if ($this->hashFilesCount !== $this->hashRangesEnd) {//Less files in the downloads area
                 try {
-                    $hashFiles = $this->localContent->listContents('downloads/');
+                    $hashFiles = $this->localContent->listContents($this->hashDir);
 
                     foreach ($hashFiles as $key => $hashFile) {
                         $path = $hashFile->path();
@@ -121,11 +121,11 @@ class Cache extends Base
                         if (str_contains($path, '.zip')) {
                             $this->deCompressHashFile($path);
 
-                            $hashFileToIndex = str_replace('downloads/', '', str_replace('.zip', '', $path));
+                            $hashFileToIndex = str_replace($this->hashDir, '', str_replace('.zip', '', $path));
 
                             $path = str_replace('.zip', '.txt', $path);
                         } else {
-                            $hashFileToIndex = str_replace('downloads/', '', str_replace('.txt', '', $path));
+                            $hashFileToIndex = str_replace($this->hashDir, '', str_replace('.txt', '', $path));
                         }
 
                         $this->updateProgress($hashFileToIndex);
@@ -156,29 +156,29 @@ class Cache extends Base
                     $convertedHash = $this->convert($hashCounter);
 
                     try {
-                        if ($this->localContent->fileExists('downloads/' . $convertedHash . '.txt')) {
+                        if ($this->localContent->fileExists($this->hashDir . $convertedHash . '.txt')) {
                             $this->updateProgress($convertedHash);
 
                             $this->extractAndCacheHash(
-                                'downloads/' . $convertedHash . '.txt',
-                                $this->localContent->readStream('downloads/' . $convertedHash . '.txt')
+                                $this->hashDir . $convertedHash . '.txt',
+                                $this->localContent->readStream($this->hashDir . $convertedHash . '.txt')
                             );
 
                             $this->writeToFile('cached.txt', $convertedHash);
-                        } else if ($this->localContent->fileExists('downloads/' . $convertedHash . '.zip')) {
-                            $this->deCompressHashFile('downloads/' . $convertedHash . '.zip');
+                        } else if ($this->localContent->fileExists($this->hashDir . $convertedHash . '.zip')) {
+                            $this->deCompressHashFile($this->hashDir . $convertedHash . '.zip');
 
-                            if ($this->localContent->fileExists('downloads/' . $convertedHash . '.txt')) {
+                            if ($this->localContent->fileExists($this->hashDir . $convertedHash . '.txt')) {
                                 $this->updateProgress($convertedHash);
 
                                 $this->extractAndCacheHash(
-                                    'downloads/' . $convertedHash . '.txt',
-                                    $this->localContent->readStream('downloads/' . $convertedHash . '.txt')
+                                    $this->hashDir . $convertedHash . '.txt',
+                                    $this->localContent->readStream($this->hashDir . $convertedHash . '.txt')
                                 );
 
                                 $this->writeToFile('cached.txt', $convertedHash);
 
-                                $this->localContent->delete('downloads/' . $convertedHash . '.txt');
+                                $this->localContent->delete($this->hashDir . $convertedHash . '.txt');
                             } else {
                                 $this->writeToFile('cachesourcenotfound.txt', $convertedHash);
 
@@ -186,7 +186,7 @@ class Cache extends Base
                             }
 
                             if (isset($this->settings['--remove-cached']) && (bool) $this->settings['--remove-cached']) {
-                                $this->compressHashFile('downloads/' . $convertedHash . '.txt');
+                                $this->compressHashFile($this->hashDir . $convertedHash . '.txt');
                             }
                         }
 
@@ -207,7 +207,7 @@ class Cache extends Base
 
     protected function extractAndCacheHash($hashFilePath, $hashFileContent)
     {
-        $hashFile = str_replace('downloads/', '', str_replace('.txt', '', $hashFilePath));
+        $hashFile = str_replace($this->hashDir, '', str_replace('.txt', '', $hashFilePath));
 
         if (isset($this->settings['--remove-cached']) && (bool) $this->settings['--remove-cached']) {
             $remainingHashes = [];
@@ -267,7 +267,7 @@ class Cache extends Base
 
     protected function newProgress($processType = 'Caching...')
     {
-        $this->hashFilesCount = iterator_count(new FilesystemIterator(__DIR__ . '/../data/downloads/', FilesystemIterator::SKIP_DOTS));
+        $this->hashFilesCount = iterator_count(new FilesystemIterator(__DIR__ . '/../data/' . $this->hashDir, FilesystemIterator::SKIP_DOTS));
 
         if ($this->hashFilesCount === 0) {
             \cli\line('%rDownloads directory empty. Nothing to cache.%w');

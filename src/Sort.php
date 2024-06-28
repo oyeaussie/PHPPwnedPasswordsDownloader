@@ -38,7 +38,7 @@ class Sort extends Base
 
         if (isset($this->settings['--hashes'])) {//Just one hash file.
             try {
-                $path = 'downloads/' . strtoupper($this->settings['--hashes']) . '.txt';
+                $path = $this->hashDir . strtoupper($this->settings['--hashes']) . '.txt';
 
                 if ($this->localContent->fileExists($path)) {
                     $this->sortHashFile($path);
@@ -79,7 +79,7 @@ class Sort extends Base
 
             if ($this->hashFilesCount !== $this->hashRangesEnd) {//Less files in the downloads area
                 try {
-                    $hashFiles = $this->localContent->listContents('downloads/');
+                    $hashFiles = $this->localContent->listContents($this->hashDir);
 
                     foreach ($hashFiles as $key => $hashFile) {
                         $path = $hashFile->path();
@@ -89,11 +89,11 @@ class Sort extends Base
                         if (str_contains($path, '.zip')) {
                             $this->deCompressHashFile($path);
 
-                            $hashFileToSort = str_replace('downloads/', '', str_replace('.zip', '', $path));
+                            $hashFileToSort = str_replace($this->hashDir, '', str_replace('.zip', '', $path));
 
                             $path = str_replace('.zip', '.txt', $path);
                         } else {
-                            $hashFileToSort = str_replace('downloads/', '', str_replace('.txt', '', $path));
+                            $hashFileToSort = str_replace($this->hashDir, '', str_replace('.txt', '', $path));
                         }
 
                         $this->updateProgress('Sorting hash: ' . $hashFileToSort . ' (' . ($this->hashCounter + 1) . '/' . $this->hashFilesCount . ')');
@@ -122,25 +122,25 @@ class Sort extends Base
                     $convertedHash = $this->convert($hashCounter);
 
                     try {
-                        if ($this->localContent->fileExists('downloads/' . $convertedHash . '.txt')) {
+                        if ($this->localContent->fileExists($this->hashDir . $convertedHash . '.txt')) {
                             $this->updateProgress($convertedHash, null, 'Sorting');
 
-                            $this->sortHashFile('downloads/' . $convertedHash . '.txt');
+                            $this->sortHashFile($this->hashDir . $convertedHash . '.txt');
 
                             $this->writeToFile('sorted.txt', $convertedHash);
-                        } else if ($this->localContent->fileExists('downloads/' . $convertedHash . '.zip')) {
-                            $this->deCompressHashFile('downloads/' . $convertedHash . '.zip');
+                        } else if ($this->localContent->fileExists($this->hashDir . $convertedHash . '.zip')) {
+                            $this->deCompressHashFile($this->hashDir . $convertedHash . '.zip');
 
-                            if ($this->localContent->fileExists('downloads/' . $convertedHash . '.txt')) {
+                            if ($this->localContent->fileExists($this->hashDir . $convertedHash . '.txt')) {
                                 $this->updateProgress($convertedHash, null, 'Sorting');
 
-                                $this->sortHashFile('downloads/' . $convertedHash . '.txt');
+                                $this->sortHashFile($this->hashDir . $convertedHash . '.txt');
 
                                 $this->writeToFile('sorted.txt', $convertedHash);
 
-                                $this->compressHashFile('downloads/' . $convertedHash . '.txt');
+                                $this->compressHashFile($this->hashDir . $convertedHash . '.txt');
 
-                                $this->localContent->delete('downloads/' . $convertedHash . '.txt');
+                                $this->localContent->delete($this->hashDir . $convertedHash . '.txt');
                             } else {
                                 $this->writeToFile('sortsourcenotfound.txt', $convertedHash);
 
@@ -238,7 +238,7 @@ class Sort extends Base
 
     protected function newProgress($processType = 'Sorting...')
     {
-        $this->hashFilesCount = iterator_count(new FilesystemIterator(__DIR__ . '/../data/downloads/', FilesystemIterator::SKIP_DOTS));
+        $this->hashFilesCount = iterator_count(new FilesystemIterator(__DIR__ . '/../data/' . $this->hashDir, FilesystemIterator::SKIP_DOTS));
 
         if ($this->hashFilesCount === 0) {
             \cli\line('%rDownloads directory empty. Nothing to sort.%w');

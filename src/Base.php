@@ -27,6 +27,10 @@ abstract class Base
 
     protected $settings;
 
+    protected $hashDir = 'sha/';
+
+    protected $hashEtagsDir = 'shaetags/';
+
     public function __construct()
     {
         $this->now = date('Y_m_d_H_i_s');
@@ -55,7 +59,7 @@ abstract class Base
             if ($this->localContent->fileExists($hashFilePath)) {
                 $this->zip->open(__DIR__ . '/../data/' . str_replace('.txt', '.zip', $hashFilePath), $this->zip::CREATE);
 
-                $this->zip->addFile(__DIR__ . '/../data/' . $hashFilePath, str_replace('downloads/', '', $hashFilePath));
+                $this->zip->addFile(__DIR__ . '/../data/' . $hashFilePath, str_replace($this->hashDir, '', $hashFilePath));
 
                 $this->zip->close();
 
@@ -72,7 +76,7 @@ abstract class Base
     {
         $this->zip->open(__DIR__ . '/../data/' . $filePath);
 
-        if (!$this->zip->extractTo(__DIR__ . '/../data/downloads/')) {
+        if (!$this->zip->extractTo(__DIR__ . '/../data/' . $this->hashDir)) {
             \cli\line('%rError unzipping file at path :' . $filePath . '%w');
 
             exit;

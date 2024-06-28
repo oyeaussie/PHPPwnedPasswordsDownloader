@@ -51,6 +51,9 @@ class Lookup extends Base
     {
         if (isset($this->settings['--ntlm']) && (bool) $this->settings['--ntlm']) {
             $this->isNtlm = true;
+
+            $this->hashDir = 'ntlm/';
+            $this->hashEtagsDir = 'ntlmetags/';
         }
 
         if (!method_exists($this, 'search' . ucfirst($this->settings['--search-method']))) {
@@ -163,7 +166,6 @@ class Lookup extends Base
         }
 
         return false;
-        var_dump();die();
     }
 
     protected function searchIndex($hashFileName, $hash)
@@ -188,12 +190,10 @@ class Lookup extends Base
                 return true;
             }
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException | Exception $e) {
-            echo $e->getMessage() . PHP_EOL;
+            \cli\line('%r' . $e->getMessage() . '%w');
 
-            return false;
+            exit;
         }
-
-        return false;
     }
 
     protected function searchArray($hashFileName, $hash)
@@ -203,7 +203,13 @@ class Lookup extends Base
 
             $this->setMicroTimer('arrLookupStart', true);
 
-            $file = $this->getFileContents('downloads/' . $hashFileName . '.txt');
+            $file = $this->getFileContents($this->hashDir . $hashFileName . '.txt');
+
+            if (!$file) {
+                \cli\line('%rUnable to read file at location ' . $this->hashDir . $hashFileName . '.txt%w');
+
+                exit;
+            }
 
             $filesContent = explode(PHP_EOL, $file);
 
@@ -235,10 +241,10 @@ class Lookup extends Base
 
             return true;
         } catch (UnableToReadFile | FilesystemException | \Exception $e) {
-            echo $e->getMessage() . PHP_EOL;
-        }
+            \cli\line('%r' . $e->getMessage() . '%w');
 
-        return false;
+            exit;
+        }
     }
 
     protected function searchString($hashFileName, $hash)
@@ -248,7 +254,13 @@ class Lookup extends Base
 
             $this->setMicroTimer('stringLookupStart', true);
 
-            $file = $this->getFileContents('downloads/' . $hashFileName . '.txt');
+            $file = $this->getFileContents($this->hashDir . $hashFileName . '.txt');
+
+            if (!$file) {
+                \cli\line('%rUnable to read file at location ' . $this->hashDir . $hashFileName . '.txt%w');
+
+                exit;
+            }
 
             $stringSearch = preg_grep('/' . substr($hash, 5, null) . ':/', explode("\n", $file));
 
@@ -266,10 +278,10 @@ class Lookup extends Base
 
             return true;
         } catch (UnableToReadFile | FilesystemException | \Exception $e) {
-            echo $e->getMessage() . PHP_EOL;
-        }
+            \cli\line('%r' . $e->getMessage() . '%w');
 
-        return false;
+            exit;
+        }
     }
 
     protected function searchStream($hashFileName, $hash)
@@ -279,7 +291,13 @@ class Lookup extends Base
 
             $this->setMicroTimer('streamLookupStart', true);
 
-            $hashFileContent = $this->getFileContents('downloads/' . $hashFileName . '.txt', true);
+            $hashFileContent = $this->getFileContents($this->hashDir . $hashFileName . '.txt', true);
+
+            if (!$hashFileContent) {
+                \cli\line('%rUnable to read file at location ' . $this->hashDir . $hashFileName . '.txt%w');
+
+                exit;
+            }
 
             while(!feof($hashFileContent)) {
                 $fileHash = explode(':', trim(fgets($hashFileContent)));
@@ -307,10 +325,10 @@ class Lookup extends Base
 
             return true;
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
-            echo $e->getMessage();
-        }
+            \cli\line('%r' . $e->getMessage() . '%w');
 
-        return false;
+            exit;
+        }
     }
 
     protected function addToHashFoundArr($hashFile, $hash, $count, $indexed = false, $cached = false)
@@ -424,7 +442,9 @@ class Lookup extends Base
                 }
             }
         } catch (UnableToCheckExistence | UnableToReadFile | UnableToDeleteFile | FilesystemException $e) {
-            echo $e->getMessage();
+            \cli\line('%r' . $e->getMessage() . '%w');
+
+            exit;
         }
 
         return false;

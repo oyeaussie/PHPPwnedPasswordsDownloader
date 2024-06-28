@@ -60,6 +60,7 @@ class Help
                 ['', '--compress=false', ''],
                 ['', '--sort=false', ''],
                 ['', '--index=false', ''],
+                ['', '--download-data=true', ''],
                 ['download --type=ntlm', 'sha', 'Will start downloading the hash files (NTLM) synchronously'],
                 ['download --get={option}', 'all', 'Specify what to get. Options: all (default), one, multiple, range, hashfile, intfile'],
                 ['download --hashes={hashes}', '-', 'Works when get argument is set'],
@@ -83,6 +84,7 @@ class Help
                 ['', '', 'Can be used with any arguments that involve downloading data'],
                 ['','','%bExample: ./hibp download --async=100 --type=ntlm compress OR download check download --async=100 --compress=true%w'],
                 ['download --max_execution_time={number}','18000', 'PHP ini setting for max_execution_time. Default is 5 hours'],
+                ['download --download-data=false','true', 'Only download eTags and not their data. Used for generating only etag database.'],
                 ['','', '']
             ];
 
