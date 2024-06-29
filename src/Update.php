@@ -17,7 +17,7 @@ class Update extends Base
     public function getUpdates()
     {
         if (!isset($_GET['since'])) {
-            return ['response' => 'Incorrect since value set.'];
+            return $this->addResponse(1, 'Incorrect since value set.');
         }
 
         $updates = null;
@@ -32,7 +32,7 @@ class Update extends Base
             try {
                 $updates = json_decode($this->localContent->read('updates/updates.json'), true);
             } catch (UnableToReadFile | FilesystemException $e) {
-                return ['response' => 'No Updates!'];
+                return $this->addResponse(0, 'No Updates!');
             }
         }
 
@@ -40,7 +40,7 @@ class Update extends Base
             try {
                 $since = Carbon::parse($_GET['since']);
             } catch (\throwable $e) {
-                return ['response' => 'Incorrect since value set.'];
+                return $this->addResponse(1, 'Incorrect since value set.');
             }
 
             $sinceTimestamp = $since->startOfday()->getTimestamp();
@@ -51,7 +51,7 @@ class Update extends Base
                 $type = $_GET['type'];
 
                 if ($type !== 'sha' && $type !== 'ntlm') {
-                    return ['response' => 'Incorrect type set.'];
+                    return $this->addResponse(1, 'Incorrect type set.');
                 }
             }
 
@@ -67,9 +67,22 @@ class Update extends Base
                 }
             }
 
-            return ['response' => $updatesSince];
+            return $this->addResponse(0, 'OK', $updatesSince);
         }
 
-        return ['response' => 'No Updates!'];
+        return $this->addResponse(0, 'No Updates!');
+    }
+
+    protected function addResponse($code = 0, $message = 'OK', $data = [])
+    {
+        $response['code'] = $code;
+
+        $response['message'] = $message;
+
+        if (count($data) > 0) {
+            $response['data'] = $data;
+        }
+
+        return $response;
     }
 }
