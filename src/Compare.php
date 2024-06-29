@@ -131,7 +131,7 @@ class Compare extends Base
             if ($this->localContent->fileExists('updates/' . 'updates.json')) {
                 $update = json_decode($this->localContent->read('updates/' . 'updates.json'), true);
 
-                $update = array_merge($update, $updates);
+                $update = array_replace($update, $updates);
 
                 $this->localContent->write('updates/updates.json', json_encode($update));
             } else {
