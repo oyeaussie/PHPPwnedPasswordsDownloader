@@ -118,6 +118,10 @@ class Compare extends Base
 
         if (isset($updates[$updateDateTimestamp]) && count($updates[$updateDateTimestamp]) > 0) {
             $this->generateUpdateIndex($updates);
+        } else {
+            \cli\line('%rNothing to compare.%w');
+
+            return false;
         }
     }
 
