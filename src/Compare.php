@@ -116,7 +116,7 @@ class Compare extends Base
             }
         }
 
-        if (count($updates[$updateDateTimestamp]) > 0) {
+        if (isset($updates[$updateDateTimestamp]) && count($updates[$updateDateTimestamp]) > 0) {
             $this->generateUpdateIndex($updates);
         }
     }
