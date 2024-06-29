@@ -47,6 +47,7 @@ class Compare extends Base
         $ntlm = false;
 
         $updateDate = $today;
+        $updateDateTimestamp = $todayObj->getTimestamp();
 
         foreach ($logs as $log) {
             if (str_starts_with($log->path(), 'logs/' . $today) || (bool) $this->settings['--rebuild-index']) {
