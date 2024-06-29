@@ -90,10 +90,10 @@ class Download extends Base
         ) {
             if (!isset($this->settings['--update-since'])) {
                 try {
-                    $this->settings['--update-since'] = $this->localContent->read('lastupdate.txt');
+                    $this->settings['--update-since'] = $this->localContent->read($this->settings['--type'] . 'lastupdate.txt');
                 } catch (UnableToReadFile | FilesystemException $e) {
-                    \cli\line('%rlastupdate.txt file is missing%w');
-                    \cli\line('%rEither add lastupdate.txt file with unix time of last update or provide it via argument --update-since={unix_time}%w');
+                    \cli\line('%r' . $this->settings['--type'] . 'lastupdate.txt file is missing%w');
+                    \cli\line('%rEither add ' . $this->settings['--type'] . 'lastupdate.txt file with unix time of last update or provide it via argument --update-since={unix_time}%w');
 
                     exit;
                 }
@@ -105,8 +105,8 @@ class Download extends Base
         }
 
         try {
-            if ($this->localContent->fileExists('resume.txt')) {
-                $this->resumeFrom = $this->localContent->read('resume.txt');
+            if ($this->localContent->fileExists($this->settings['--type'] . 'resume.txt')) {
+                $this->resumeFrom = $this->localContent->read($this->settings['--type'] . 'resume.txt');
             }
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
             \cli\line('%r' . $e->getMessage() . '%w');
@@ -116,8 +116,8 @@ class Download extends Base
 
         if ($this->settings['--async'] && (int) $this->settings['--async'] > 0) {
             try {
-                if ($this->localContent->fileExists('pool.txt')) {
-                    $this->localContent->delete('pool.txt');
+                if ($this->localContent->fileExists($this->settings['--type'] . 'pool.txt')) {
+                    $this->localContent->delete($this->settings['--type'] . 'pool.txt');
                 }
             } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
                 \cli\line('%r' . $e->getMessage() . '%w');
@@ -373,11 +373,11 @@ class Download extends Base
                     (bool) $this->settings['--check-download'])
         ) {
             try {
-                if ($this->localContent->fileExists('checkfile.txt')) {
-                    $this->localContent->delete('checkfile.txt');
+                if ($this->localContent->fileExists($this->settings['--type'] . 'checkfile.txt')) {
+                    $this->localContent->delete($this->settings['--type'] . 'checkfile.txt');
                 }
-                if ($this->localContent->fileExists('resume.txt')) {
-                    $this->localContent->delete('resume.txt');
+                if ($this->localContent->fileExists($this->settings['--type'] . 'resume.txt')) {
+                    $this->localContent->delete($this->settings['--type'] . 'resume.txt');
                 }
             } catch (UnableToCheckExistence | UnableToDeleteFile | FilesystemException $e) {
                 \cli\line('%r' . $e->getMessage() . '%w');
@@ -413,7 +413,7 @@ class Download extends Base
 
             if (!$convertedHash) {
                 if ((bool) $this->settings['--force']) {
-                    $this->writeToFile('converterror.txt', $hashCounter);
+                    $this->writeToFile($this->settings['--type'] . 'converterror.txt', $hashCounter);
                 } else {
                     \cli\line('%rFailed to convert counter ' . $hashCounter . ' to hash!%w');
                 }
@@ -428,10 +428,10 @@ class Download extends Base
                              !$this->localContent->fileExists($this->hashDir . strtoupper($convertedHash) . '.zip')) ||
                             !$this->localContent->fileExists($this->hashEtagsDir . strtoupper($convertedHash) . '.txt')
                         ) {
-                            $this->writeToFile('checkfile.txt', $convertedHash);
+                            $this->writeToFile($this->settings['--type'] . 'checkfile.txt', $convertedHash);
                         }
                     } else if (!$this->localContent->fileExists($this->hashEtagsDir . strtoupper($convertedHash) . '.txt')) {
-                        $this->writeToFile('checkfile.txt', $convertedHash);
+                        $this->writeToFile($this->settings['--type'] . 'checkfile.txt', $convertedHash);
                     }
                 } catch (UnableToCheckExistence | FilesystemException $e) {
                     \cli\line('%r' . $e->getMessage() . '%w');
@@ -440,7 +440,7 @@ class Download extends Base
                 }
             } else {
                 if ((int) $this->settings['--async'] > 0) {
-                    $this->writeToFile('pool.txt', $convertedHash);
+                    $this->writeToFile($this->settings['--type'] . 'pool.txt', $convertedHash);
 
                     $this->poolCount++;
                 } else {
@@ -465,10 +465,10 @@ class Download extends Base
 
         if ($this->check) {
             try {
-                $checkfile = $this->localContent->fileExists('checkfile.txt');
+                $checkfile = $this->localContent->fileExists($this->settings['--type'] . 'checkfile.txt');
 
                 if ($checkfile) {
-                    $checkfile = $this->localContent->read('checkfile.txt');
+                    $checkfile = $this->localContent->read($this->settings['--type'] . 'checkfile.txt');
 
                     $checkfile = trim(trim($checkfile), ',');
 
@@ -506,7 +506,7 @@ class Download extends Base
 
                     foreach ($checkfile as $hashKey => $hash) {
                         if ((int) $this->settings['--async'] > 0) {
-                            $this->writeToFile('pool.txt', $hash);
+                            $this->writeToFile($this->settings['--type'] . 'pool.txt', $hash);
 
                             $this->poolCount++;
 
@@ -543,7 +543,7 @@ class Download extends Base
 
         if ($this->settings['--get'] === 'all' || (bool) $this->settings['--check-download']) {
             try {
-                $this->localContent->write('lastupdate.txt', time());
+                $this->localContent->write($this->settings['--type'] . 'lastupdate.txt', time());
             } catch (UnableToWriteFile | FilesystemException $e) {
                 \cli\line('%r' . $e->getMessage() . '%w');
 
@@ -588,7 +588,7 @@ class Download extends Base
     protected function downloadHashUsingPool()
     {
         try {
-            if (!$this->localContent->fileExists('pool.txt')) {
+            if (!$this->localContent->fileExists($this->settings['--type'] . 'pool.txt')) {
                 \cli\line('%rPoolfile does not exists!.%w');
 
                 return false;
@@ -693,7 +693,7 @@ class Download extends Base
 
                     $this->new = $this->new + 1;
 
-                    $this->writeToFile('new.txt', strtoupper($hash));
+                    $this->writeToFile($this->settings['--type'] . 'new.txt', strtoupper($hash));
                 } catch (UnableToWriteFile | FilesystemException $e) {
                     \cli\line('%r' . $e->getMessage() . '%w');
 
@@ -702,11 +702,11 @@ class Download extends Base
             } else if ($response->getStatusCode() === 304) {
                 $this->noChange = $this->noChange + 1;
 
-                $this->writeToFile('nochange.txt', strtoupper($hash));
+                $this->writeToFile($this->settings['--type'] . 'nochange.txt', strtoupper($hash));
             }
 
             if ((bool) $this->settings['--resume']) {
-                $this->localContent->write('resume.txt', ($this->hashRangesEnd === ($hashCounter + 1)) ? 0 : $hashCounter);
+                $this->localContent->write($this->settings['--type'] . 'resume.txt', ($this->hashRangesEnd === ($hashCounter + 1)) ? 0 : $hashCounter);
             }
 
             if (isset($this->settings['--sort']) && (bool) $this->settings['--sort'] && $this->sort) {

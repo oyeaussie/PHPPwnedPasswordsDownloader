@@ -25,22 +25,24 @@ abstract class Base
 
     protected $hashCounter;
 
-    protected $settings;
+    protected $settings = [];
 
     protected $hashDir = 'sha/';
 
     protected $hashEtagsDir = 'shaetags/';
 
-    public function __construct()
+    public function __construct($createRoot = false)
     {
-        $this->now = date('Y_m_d_H_i_s');
+        $this->now = date('Y-m-d-H-i-s');
 
         $this->localContent = new Filesystem(
             new LocalFilesystemAdapter(
                 __DIR__ . '/../data/',
                 null,
                 LOCK_EX,
-                LocalFilesystemAdapter::SKIP_LINKS
+                LocalFilesystemAdapter::SKIP_LINKS,
+                null,
+                $createRoot
             ),
             []
         );
@@ -110,8 +112,10 @@ abstract class Base
         try {
             $separator = ',';
 
-            if ($file === 'checkfile.txt' || $file === 'pool.txt') {
-                if ($file === 'pool.txt') {
+            if (isset($this->settings['--type']) &&
+                ($file === $this->settings['--type'] . 'checkfile.txt' || $file === $this->settings['--type'] . 'pool.txt')
+            ) {
+                if ($file === $this->settings['--type'] . 'pool.txt') {
                     $separator = PHP_EOL;
                 }
 

@@ -1,19 +1,27 @@
 <?php
 
+use PHPPwnedPasswordsDownloader\Compare;
+use PHPPwnedPasswordsDownloader\Download;
+use PHPPwnedPasswordsDownloader\Help;
+use PHPPwnedPasswordsDownloader\Index;
+use PHPPwnedPasswordsDownloader\Lookup;
+use PHPPwnedPasswordsDownloader\Sort;
+use PHPPwnedPasswordsDownloader\Update;
+
 include 'vendor/autoload.php';
 
 try {
-    \cli\line('%wThis is a CLI tool to download, index, cache, sort and lookup pwned password. Type --help for list of commands.%w');
-    \cli\line('');
-
-    $method = null;
-
     if (PHP_SAPI === 'cli') {
+        \cli\line('%wThis is a CLI tool to download, index, cache, sort and lookup pwned password. Type ./hibp --help for list of commands.%w');
+        \cli\line('');
+
+        $method = null;
+
         array_splice($argv, 0, 1);//Remove index.php
 
         if (count($argv) > 0) {
             if ($argv[0] === '--help' || $argv[0] === '-h') {//help
-                (new \PHPPwnedPasswordsDownloader\Help($method))->show();
+                (new Help($method))->show();
 
                 return true;
             } else {
@@ -26,16 +34,30 @@ try {
                 }
 
                 if ($method === 'download') {//download
-                    (new \PHPPwnedPasswordsDownloader\Download($argv))->run();
+                    (new Download($argv))->run();
                 } else if ($method === 'sort') {//sort
-                    (new \PHPPwnedPasswordsDownloader\Sort($argv))->run();
+                    (new Sort($argv))->run();
                 } else if ($method === 'index') {//index
-                    (new \PHPPwnedPasswordsDownloader\Index($argv))->run();
+                    (new Index($argv))->run();
                 } else if ($method === 'lookup') {//lookup
-                    (new \PHPPwnedPasswordsDownloader\Lookup($argv))->search();
+                    (new Lookup($argv))->search();
+                } else if ($method === 'compare') {//compare downloads to generate update json and update php file.
+                    (new Compare($argv))->run();
                 }
             }
         }
+    } else if (isset($_GET['since'])) {
+        $updates = (new Update())->getUpdates();
+
+        if ($updates) {
+            header('Content-Type: application/json; charset=utf-8');
+
+            echo json_encode($updates);
+        }
+    } else {
+        echo "This is a CLI tool to download, index, cache, sort and lookup pwned password. From CLI, type ./hibp --help for list of commands.";
+
+        exit;
     }
 } catch (\Exception $e) {
     echo $e->getMessage() . PHP_EOL;
@@ -48,9 +70,7 @@ function processArguments($argv, &$method)
     array_splice($argv, 0, 1);
 
     if (count($argv) === 0) {
-        $argv['--defaults'] = true;
-
-        return $argv;
+        return [];
     }
 
     $arguments = [];
