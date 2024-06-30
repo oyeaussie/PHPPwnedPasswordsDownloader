@@ -30,6 +30,11 @@ class Cache extends Base
             $settings
         );
 
+        if (isset($this->settings['--type']) && $this->settings['--type'] === 'ntlm') {
+            $this->hashDir = 'ntlm/';
+            $this->hashEtagsDir = 'ntlmetags/';
+        }
+
         $this->redis = new Redis();
         $redisHost = '127.0.0.1';
         $redisPort = 6379;

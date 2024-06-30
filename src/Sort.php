@@ -24,6 +24,11 @@ class Sort extends Base
             ],
             $settings
         );
+
+        if (isset($this->settings['--type']) && $this->settings['--type'] === 'ntlm') {
+            $this->hashDir = 'ntlm/';
+            $this->hashEtagsDir = 'ntlmetags/';
+        }
     }
 
     public function run($hash = null, $progress = true)
