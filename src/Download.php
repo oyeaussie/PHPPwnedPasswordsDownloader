@@ -595,7 +595,7 @@ class Download extends Base
             }
 
             $poolRequests = function() {
-                $poolFile = fopen(__DIR__ . '/../data/pool.txt', "r");
+                $poolFile = fopen(__DIR__ . '/../data/' . $this->settings['--type'] . 'pool.txt', "r");
 
                 while(!feof($poolFile)) {
                     $hash = trim(fgets($poolFile));
