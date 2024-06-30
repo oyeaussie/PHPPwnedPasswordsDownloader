@@ -40,7 +40,15 @@ class Update extends Base
             try {
                 $since = Carbon::parse($_GET['since']);
             } catch (\throwable $e) {
-                return $this->addResponse(1, 'Incorrect since value set.');
+                try {
+                    $since = Carbon::createFromTimestamp($_GET['since']);
+                } catch (\throwable $e) {
+                    return $this->addResponse(1, 'Incorrect since value set.');
+                }
+
+                if (!isset($since)) {
+                    return $this->addResponse(1, 'Incorrect since value set.');
+                }
             }
 
             $sinceTimestamp = $since->startOfday()->getTimestamp();
