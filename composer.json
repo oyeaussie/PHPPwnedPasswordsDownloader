@@ -19,7 +19,8 @@
         "guzzlehttp/psr7": "^1.9.1 || ^2.5.1",
         "psr/http-client": "^1.0",
         "symfony/deprecation-contracts": "^2.2 || ^3.0",
-        "wp-cli/php-cli-tools": "*"
+        "wp-cli/php-cli-tools": "*",
+        "nesbot/carbon": "*"
     },
     "autoload": {
         "psr-4": {
@@ -31,6 +32,7 @@
         "league/flysystem": "^3.28"
     },
     "require-dev": {
-        "wp-cli/php-cli-tools": "^0.11.22"
+        "wp-cli/php-cli-tools": "^0.11.22",
+        "nesbot/carbon": "^3.6"
     }
 }
