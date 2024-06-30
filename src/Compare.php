@@ -54,6 +54,11 @@ class Compare extends Base
                 $date = str_replace('logs/', '', $log->path());
 
                 $date = explode('-', $date);
+
+                if (count($date) < 3) {
+                    continue;
+                }
+
                 $date = $date[0] . '-' . $date[1] . '-' . $date[2];
 
                 try {
