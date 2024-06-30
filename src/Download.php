@@ -39,26 +39,38 @@ class Download extends Base
 
     protected $index;
 
-    public function __construct(array $settings = [], array $guzzleOptions = [])
+    public function __construct(array $settings = [])
     {
         parent::__construct();
 
-        $this->remoteWebContent = new Client($guzzleOptions);
+        $this->remoteWebContent = new Client(
+            [
+                'debug'           => false,
+                'http_errors'     => true,
+                'timeout'         => 10,
+                'verify'          => false
+            ]
+        );
 
         $this->settings = array_merge(
             [
-                '--get'                 => 'all',
-                '--max_execution_time'  => 18000,
-                '--force'               => false,
-                '--resume'              => true,
-                '--compress'            => false,
-                '--type'                => 'sha',
-                '--async'               => false,
-                '--update-source'       => 'api',
-                '--download-data'       => 'true'
+                '--get'                     => 'all',
+                '--max_execution_time'      => 18000,
+                '--force'                   => false,
+                '--resume'                  => true,
+                '--compress'                => false,
+                '--type'                    => 'sha',
+                '--async'                   => false,
+                '--update-source'           => 'api',
+                '--download-data'           => 'true',
+                '--process-errors-count'    => 5
             ],
             $settings
         );
+
+        if ($this->settings['--process-errors-count'] > 10) {
+            $this->settings['--process-errors-count'] = 10;
+        }
 
         if (isset($this->settings['--type']) && $this->settings['--type'] === 'ntlm') {
             $this->hashDir = 'ntlm/';
@@ -105,7 +117,10 @@ class Download extends Base
         }
 
         try {
-            if ((bool) $this->settings['--resume'] && $this->localContent->fileExists($this->settings['--type'] . 'resume.txt')) {
+            if ((bool) $this->settings['--resume'] &&
+                $this->resumeFrom === 0 &&
+                $this->localContent->fileExists($this->settings['--type'] . 'resume.txt')
+            ) {
                 $this->resumeFrom = $this->localContent->read($this->settings['--type'] . 'resume.txt');
             }
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
@@ -142,10 +157,10 @@ class Download extends Base
                 }
             }
 
-            $this->settings['--resume'] = false;
-            $this->settings['--async'] = false;
-
             if ($this->settings['--get'] === 'one') {
+                $this->settings['--resume'] = false;
+                $this->settings['--async'] = false;
+
                 if (!$this->checkHashLength($this->settings['--hashes'])) {
                     \cli\line('%rPlease provide correct hash. Hash should be 5 characters long. Error on hash: ' . $this->settings['--hashes'] . '%w');
 
@@ -167,6 +182,9 @@ class Download extends Base
 
                 return true;
             } else if ($this->settings['--get'] === 'multiple') {
+                $this->settings['--resume'] = false;
+                $this->settings['--async'] = false;
+
                 $hashes = trim(trim($this->settings['--hashes']), ',');
 
                 $hashes = explode(',', $hashes);
@@ -252,115 +270,68 @@ class Download extends Base
                 }
 
                 $this->newProgress();
-            } else if ($this->settings['--get'] === 'hashfile') {
-                $hashfile = 'hashfile.txt';
+            } else if ($this->settings['--get'] === 'hashfile' || $this->settings['--get'] === 'intfile') {
+                $file = $this->settings['--get'] . '.txt';
 
                 if (isset($this->settings['--hashes'])) {
-                    $hashfile = $this->settings['--hashes'];
+                    $file = $this->settings['--hashes'];
                 }
 
                 try {
-                    if ($this->localContent->fileExists($hashfile)) {
-                        $hashfile = $this->localContent->read($hashfile);
+                    if ($this->localContent->fileExists($file)) {
+                        $file = $this->localContent->read($file);
 
-                        $hashfile = trim(trim($hashfile), ',');
+                        $file = trim(trim($file), ',');
                     } else {
-                        \cli\line('%rHashfile does not exists! Please add comma separated hash to ' . $hashfile . ' in data folder.%w');
+                        if ($this->settings['--get'] === 'hashfile') {
+                            \cli\line('%rHashfile does not exists! Please add comma separated hash to ' . $file . ' in data folder.%w');
+                        } else if ($this->settings['--get'] === 'intfile') {
+                            \cli\line('%rIntfile does not exists! Please add comma separated integers to ' . $intfile . ' in folder data.' . '%w');
+                        }
 
                         return false;
                     }
 
-                    $hashfile = explode(',', $hashfile);
+                    $file = explode(',', $file);
 
-                    if (count($hashfile) === 0) {
-                        \cli\line('%rHashfile has no hashes. Please add comma separated hash to' . $hashfile . '%w');
+                    if (count($file) === 0) {
+                        if ($this->settings['--get'] === 'hashfile') {
+                            \cli\line('%rHashfile has no hashes. Please add comma separated hash to' . $file . '%w');
+                        } else if ($this->settings['--get'] === 'intfile') {
+                            \cli\line('%rIntfile has no integers. Please add comma separated integers to ' . $intfile . '%w');
+                        }
 
                         return false;
                     }
 
-                    foreach ($hashfile as $hashKey => $hash) {
-                        if (!$this->checkHashLength($hash)) {
-                            \cli\line('%rPlease provide correct hash. Hash should be 5 characters long. Error on hash: ' . $hash . '%w');
+                    if ($this->settings['--get'] === 'hashfile') {
+                        foreach ($file as $hashKey => &$hash) {
+                            if (!$this->checkHashLength($hash)) {
+                                \cli\line('%rPlease provide correct hash. Hash should be 5 characters long. Error on hash: ' . $hash . '%w');
 
-                            return false;
+                                return false;
+                            }
+
+                            $hash = $this->convert(null, $hash);//convert hash to integer.
                         }
                     }
 
-                    $this->hashRangesEnd = count($hashfile);
+                    sort($file);
 
-                    $this->newProgress();
-
-                    foreach ($hashfile as $hashKey => $hash) {
-                        $this->downloadHash(strtoupper(trim($hash)));
-
-                        $message = 'Downloading new hash: ' . $this->new . ' | ' .
-                                   'Skipped (same eTag) : ' . $this->noChange .
-                                   ' (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')';
-
-                        $this->updateProgress($message);
-                    }
-
-                    $this->finishProgress();
-
-                    return true;
-                } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
-                    \cli\line('%r' . $e->getMessage() . '%w');
-
-                    exit;
-                }
-            } else if ($this->settings['--get'] === 'intfile') {
-                $intfile = 'intfile.txt';
-
-                if (isset($this->settings['--hashes'])) {
-                    $intfile = $this->settings['--hashes'];
-                }
-
-                try {
-                    if ($this->localContent->fileExists($intfile)) {
-                        $intfile = $this->localContent->read($intfile);
-
-                        $intfile = trim(trim($intfile), ',');
-                    } else {
-                        \cli\line('%rIntfile does not exists! Please add comma separated integers to ' . $intfile . ' in folder data.' . '%w');
-
-                        return false;
-                    }
-
-                    $intfile = explode(',', $intfile);
-
-                    if (count($intfile) === 0) {
-                        \cli\line('%rIntfile has no integers. Please add comma separated integers to ' . $intfile . '%w');
-
-                        return false;
-                    }
-
-                    $this->hashRangesEnd = count($intfile);
-
-                    $this->newProgress();
-
-                    foreach ($intfile as $hashKey => $hashCounter) {
-                        $this->hashCounter = $hashCounter;
-
-                        $convertedHash = $this->convert($hashCounter);
-
-                        if (!$convertedHash) {
-                            \cli\line('%rFailed to convert counter ' . $hashCounter . ' to hash!%w');
-
-                            return false;
+                    if ($file[array_key_first($file)] < 0 || $file[array_key_last($file)] > (1024 * 1024)) {
+                        if ($this->settings['--get'] === 'hashfile') {
+                            \cli\line('%rHashfile has incorrect hashes. Hashes should be between 00000-FFFFF%w');
+                        } else if ($this->settings['--get'] === 'intfile') {
+                            \cli\line('%rIntfile has incorrect integers. Integers should be between 0-' . (1024 * 1024) . '%w');
                         }
 
-                        $this->downloadHash(strtoupper(trim($convertedHash)));
-
-                        $message = 'Downloading new hash: ' . $this->new . ' | ' .
-                                   'Skipped (same eTag) : ' . $this->noChange .
-                                   ' (' . ($hashKey + 1) . '/' . $this->hashRangesEnd . ')';
-
-                        $this->updateProgress($message);
+                        return false;
                     }
 
-                    $this->finishProgress();
+                    $this->hashRangesStart = (int) $file[array_key_first($file)];
+                    $this->hashRangesEnd = (int) $file[array_key_last($file)] + 1;
 
-                    return true;
+                    $this->newProgress();
                 } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
                     \cli\line('%r' . $e->getMessage() . '%w');
 
@@ -776,7 +747,11 @@ class Download extends Base
     protected function updateFromDifferentSource()
     {
         try {
-            $response = $this->remoteWebContent->request('POST', $this->settings['--update-source'], ['update-since' => $this->settings['--update-since']]);
+            $response =
+                $this->remoteWebContent->request(
+                    'GET',
+                    $this->settings['--update-source'] . '?since=' . $this->settings['--update-since'] . '&type=' . $this->settings['--type']
+                );
         } catch (\Exception $e) {
             \cli\line('%rFailed to download update file from ' . $this->settings['--update-source']);
             \cli\line('%rError : ' . $e->getMessage() . '%w');
@@ -784,6 +759,60 @@ class Download extends Base
             exit;
         }
 
-        var_dump($response);die();
+        if ($response->getStatusCode() === 200) {
+            $responseData = json_decode($response->getBody()->getContents(), true);
+
+            if ($responseData['code'] == '0' &&
+                isset($responseData['data']) &&
+                count($responseData['data']) > 0
+            ) {
+                $integers = [];
+
+                foreach ($responseData['data'] as $time => $hashTypes) {
+                    if (isset($hashTypes[$this->settings['--type']]) && count($hashTypes[$this->settings['--type']]) > 0) {
+                        foreach ($hashTypes[$this->settings['--type']] as $hashes) {
+                            if (str_contains($hashes, '-')) {
+                                $hashRange = explode('-', $hashes);
+
+                                if (count($hashRange) === 2) {
+                                    for($i = $hashRange[0]; $i <= $hashRange[1]; $i++) {
+                                        if (!isset($integers[(int) $i])) {
+                                            $integers[(int) $i] = (int) $i;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                try {
+                    $this->writeToFile('intfile.txt', implode(',', $integers));
+
+                    \cli\line('%bWriting integers file to logs/' . $this->now . '/intfile.txt%w');
+                } catch (UnableToWriteFile | FilesystemException $e) {
+                    \cli\line('%r' . $e->getMessage() . '%w');
+
+                    exit;
+                }
+            }
+        } else {
+            \cli\line('%rFailed to download update file from ' . $this->settings['--update-source']);
+            \cli\line('%rStatus Code : ' . $response->getStatusCode() . '%w');
+
+            exit;
+        }
+
+        $this->settings['--get'] = 'intfile';
+        $this->settings['--hashes'] = 'logs/' . $this->now . '/intfile.txt';
+        $this->settings['--update-source'] = 'api';
+        $this->settings['--update-since'] = null;
+        $this->new = 0;
+        $this->noChange = 0;
+        $this->resumeFrom = $integers[array_key_first($integers)];
+
+        \cli\line('%bExecuting download with integers file from logs/' . $this->now . '/intfile.txt%w');
+
+        return $this->run();
     }
 }
