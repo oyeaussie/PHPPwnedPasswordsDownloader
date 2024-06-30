@@ -105,7 +105,7 @@ class Download extends Base
         }
 
         try {
-            if ($this->localContent->fileExists($this->settings['--type'] . 'resume.txt')) {
+            if ((bool) $this->settings['--resume'] && $this->localContent->fileExists($this->settings['--type'] . 'resume.txt')) {
                 $this->resumeFrom = $this->localContent->read($this->settings['--type'] . 'resume.txt');
             }
         } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
@@ -403,7 +403,7 @@ class Download extends Base
         }
 
         //Run Counter
-        for ($hashCounter = ($this->settings['--resume'] && $this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart;
+        for ($hashCounter = ((bool) $this->settings['--resume'] && $this->resumeFrom > 0) ? $this->resumeFrom : $this->hashRangesStart;
              $hashCounter < $this->hashRangesEnd;
              $hashCounter++
          ) {
