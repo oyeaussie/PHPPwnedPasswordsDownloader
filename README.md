@@ -5,8 +5,9 @@ The hash files can be sorted, indexed and cached to perform faster look ups of p
 
 This tool is written in PHP so, it can be either run from the CLI or integrated into any site you want by instantiating the classes.
 
-<h2>Wiki:</h2>
-[WIKI](https://github.com/oyeaussie/PHPPwnedPasswordsDownloader/wiki/1.-Description)
+<h2>Documentation:</h2>
+
+[Documentation for this repository](https://github.com/oyeaussie/PHPPwnedPasswordsDownloader/wiki/1.-Description)
 
 <h2>Credits:</h2>
 Thanks to the following projects for their great work. Without them, this project would not be possible.<br>
