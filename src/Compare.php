@@ -77,7 +77,7 @@ class Compare extends Base
                         $newfile = explode(',', trim(trim($newfile), ','));
 
                         if (count($newfile) > 0) {
-                            $updates[$updateDateTimestamp]['sha'] = $newfile;
+                            $updates[$updateDateTimestamp]['sha'] = $this->getRanges($this->convertToInt($newfile));
                         }
 
                         $sha = true;
@@ -87,7 +87,7 @@ class Compare extends Base
                         $newfile = explode(',', trim(trim($newfile), ','));
 
                         if (count($newfile) > 0) {
-                            $updates[$updateDateTimestamp]['ntlm'] = $newfile;
+                            $updates[$updateDateTimestamp]['ntlm'] = $this->getRanges($this->convertToInt($newfile));
                         }
 
                         $ntlm = true;
@@ -157,5 +157,39 @@ class Compare extends Base
         $value = str_replace('stdClass::__set_state', '(object)', $value);
 
         $this->localContent->write('updates/updates.php', '<?php $pwned_updates = ' . $value . ';');
+    }
+
+    protected function getRanges(array $numbers)
+    {
+        $ranges = [];
+
+        $len = count($numbers);
+
+        for ($i = 0; $i < $len; $i++) {
+            $rangeStart = $rangeEnd = $numbers[$i];
+
+            while (isset($numbers[$i+1]) && $numbers[$i+1] - $numbers[$i] == 1) {
+                $i++;
+
+                $rangeEnd = $numbers[$i];
+            }
+
+            $ranges[] = $rangeStart == $rangeEnd ? "$rangeStart" : "$rangeStart-$rangeEnd";
+        }
+
+        return $ranges;
+    }
+
+    protected function convertToInt(array $hashes)
+    {
+        $integers = [];
+
+        foreach ($hashes as $hash) {
+            array_push($integers, $this->convert(null, $hash));
+        }
+
+        sort($integers);
+
+        return $integers;
     }
 }
