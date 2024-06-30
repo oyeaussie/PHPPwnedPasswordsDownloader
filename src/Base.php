@@ -89,7 +89,7 @@ abstract class Base
     {
         $this->progress =
             new Bar($processType,
-                    ($this->settings['--resume'] && $this->resumeFrom > 0) ?
+                    ((bool) $this->settings['--resume'] && $this->resumeFrom > 0) ?
                     ($this->hashRangesEnd - $this->resumeFrom) :
                     $this->hashRangesEnd
             );

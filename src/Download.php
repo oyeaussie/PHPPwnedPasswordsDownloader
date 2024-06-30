@@ -39,6 +39,8 @@ class Download extends Base
 
     protected $index;
 
+    protected $recordErrors = true;
+
     public function __construct(array $settings = [])
     {
         parent::__construct();
@@ -171,7 +173,7 @@ class Download extends Base
 
                 $this->newProgress();
 
-                $this->downloadHash(strtoupper(trim($this->settings['--hashes'])));
+                $download = $this->downloadHash(strtoupper(trim($this->settings['--hashes'])));
 
                 $message =
                     'Downloading new hash: ' . $this->new . ' | ' .
@@ -180,7 +182,7 @@ class Download extends Base
 
                 $this->updateProgress($message);
 
-                return true;
+                return $download;
             } else if ($this->settings['--get'] === 'multiple') {
                 $this->settings['--resume'] = false;
                 $this->settings['--async'] = false;
@@ -217,6 +219,9 @@ class Download extends Base
                     $this->updateProgress($message);
                 }
             } else if ($this->settings['--get'] === 'range') {
+                $this->settings['--resume'] = false;
+                $this->settings['--async'] = false;
+
                 $hashes = trim(trim($this->settings['--hashes']), ',');
 
                 $hashes = explode(',', $hashes);
@@ -512,7 +517,7 @@ class Download extends Base
 
         $this->finishProgress();
 
-        if ($this->settings['--get'] === 'all' || (bool) $this->settings['--check-download']) {
+        if ($this->settings['--get'] === 'all' || (isset($this->settings['--check-download']) && (bool) $this->settings['--check-download'])) {
             try {
                 $this->localContent->write($this->settings['--type'] . 'lastupdate.txt', time());
             } catch (UnableToWriteFile | FilesystemException $e) {
@@ -520,6 +525,10 @@ class Download extends Base
 
                 exit;
             }
+        }
+
+        if ((int) $this->settings['--process-errors-count'] !== 0) {
+            $this->processErrors();
         }
 
         return true;
@@ -532,19 +541,23 @@ class Download extends Base
         try {
             $response = $this->remoteWebContent->request('GET', $this->apiUri . $hash . ($this->settings['--type'] === 'ntlm' ? '?mode=ntlm' : ''), $headers);
         } catch (\Exception $e) {
-            if ((bool) $this->settings['--force']) {
+            if ((bool) $this->settings['--force'] && $this->recordErrors) {
+                \cli\line('%rError while downloading hash ' . strtoupper($hash) . '. Force is applied, so adding hash to errors.txt file and continue%w');
+
                 $this->writeToFile('errors.txt', $hash);
 
                 return;
-            } else {
+            } else if ($this->recordErrors) {
                 \cli\line('%rFailed to download file with ' . strtoupper($hash));
                 \cli\line('%rError : ' . $e->getMessage() . '%w');
 
                 exit;
+            } else {
+                return false;
             }
         }
 
-        $this->processResponse($response, $hash, $hashCounter);
+        return $this->processResponse($response, $hash, $hashCounter);
     }
 
     protected function checkHashLength($hash)
@@ -700,6 +713,57 @@ class Download extends Base
         }
 
         return true;
+    }
+
+    protected function processErrors()
+    {
+        \cli\line('%bProcessing errors.txt file%w');
+
+        $errors = [];
+
+        try {
+            if ($this->localContent->fileExists('logs/' . $this->now . '/errors.txt')) {
+                $errorsFile = $this->localContent->read('logs/' . $this->now . '/errors.txt');
+
+                $errors = trim(trim($errorsFile), ',');
+
+                $errors = explode(',', $errors);
+            }
+        } catch (UnableToCheckExistence | UnableToReadFile | FilesystemException $e) {
+            \cli\line('%r' . $e->getMessage() . '%w');
+
+            exit;
+        }
+
+        if (count($errors) === 0) {
+            return true;
+        }
+
+        $processErrorsCount = 0;
+
+        while ($processErrorsCount !== (int) $this->settings['--process-errors-count']) {
+            foreach ($errors as $errorKey => $errorHash) {
+                $this->settings['--get'] = 'one';
+                $this->settings['--hashes'] = $errorHash;
+                $this->settings['--update-source'] = 'api';
+                $this->settings['--update-since'] = null;
+                $this->new = 0;
+                $this->noChange = 0;
+                $this->recordErrors = false;
+
+                \cli\line('%bTrying hash ' . $errorHash . ' again...%w');
+
+                if ($this->run()) {
+                    unset($errors[$errorKey]);
+                }
+            }
+
+            $processErrorsCount++;
+        }
+
+        if (count($errors) > 0) {
+            \cli\line('%rCould not resolve all errors!  %w');
+        }
     }
 
     public function getHeaders($hash)
