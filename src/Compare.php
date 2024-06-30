@@ -138,9 +138,13 @@ class Compare extends Base
                 $update = array_replace($update, $updates);
 
                 $this->localContent->write('updates/updates.json', json_encode($update));
+
+                $updates = $update;
             } else {
                 $this->localContent->write('updates/updates.json', json_encode($updates));
             }
+
+            ksort($updates);
 
             $this->setCache($updates);
         } catch (UnableToCheckExistence | UnableToReadFile | UnableToWriteFile | FilesystemException $e) {
