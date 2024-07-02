@@ -544,7 +544,7 @@ class Download extends Base
             if ((bool) $this->settings['--force'] && $this->recordErrors) {
                 \cli\line('%rError while downloading hash ' . strtoupper($hash) . '. Force is applied, so adding hash to errors.txt file and continue%w');
 
-                $this->writeToFile('errors.txt', $hash);
+                $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
                 return;
             } else if ($this->recordErrors) {
@@ -643,7 +643,7 @@ class Download extends Base
 
         if ($response instanceof RequestException) {
             if ((bool) $this->settings['--force']) {
-                $this->writeToFile('errors.txt', $hash);
+                $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
                 return;
             } else {
@@ -654,7 +654,7 @@ class Download extends Base
         } else {
             if ($response->getStatusCode() !== 200 && $response->getStatusCode() !== 304) {
                 if ((bool) $this->settings['--force']) {
-                    $this->writeToFile('errors.txt', $hash);
+                    $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
                     return;
                 } else {
@@ -722,8 +722,8 @@ class Download extends Base
         $errors = [];
 
         try {
-            if ($this->localContent->fileExists('logs/' . $this->now . '/errors.txt')) {
-                $errorsFile = $this->localContent->read('logs/' . $this->now . '/errors.txt');
+            if ($this->localContent->fileExists('logs/' . $this->now . '/' . $this->settings['--type'] . 'errors.txt')) {
+                $errorsFile = $this->localContent->read('logs/' . $this->now . '/' . $this->settings['--type'] . 'errors.txt');
 
                 $errors = trim(trim($errorsFile), ',');
 
