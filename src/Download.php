@@ -3,6 +3,7 @@
 namespace PHPPwnedPasswordsDownloader;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Psr7\Request;
@@ -544,7 +545,7 @@ class Download extends Base
             if ((bool) $this->settings['--force'] && $this->recordErrors) {
                 \cli\line('%rError while downloading hash ' . strtoupper($hash) . '. Force is applied, so adding hash to errors.txt file and continue%w');
 
-                $this->writeToFile('errors.txt', $hash);
+                $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
                 return;
             } else if ($this->recordErrors) {
@@ -616,7 +617,7 @@ class Download extends Base
 
                     $this->hashCounter = $this->hashCounter + 1;
                 },
-                'rejected'      => function (RequestException $reason, $index) {
+                'rejected'      => function (RequestException | ConnectException $reason, $index) {
                     $this->processResponse($reason, $index);
                 },
             ]);
@@ -641,9 +642,9 @@ class Download extends Base
             }
         }
 
-        if ($response instanceof RequestException) {
+        if ($response instanceof RequestException || $response instanceof ConnectException) {
             if ((bool) $this->settings['--force']) {
-                $this->writeToFile('errors.txt', $hash);
+                $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
                 return;
             } else {
@@ -654,7 +655,7 @@ class Download extends Base
         } else {
             if ($response->getStatusCode() !== 200 && $response->getStatusCode() !== 304) {
                 if ((bool) $this->settings['--force']) {
-                    $this->writeToFile('errors.txt', $hash);
+                    $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
                     return;
                 } else {
@@ -717,13 +718,13 @@ class Download extends Base
 
     protected function processErrors()
     {
-        \cli\line('%bProcessing errors.txt file%w');
+        \cli\line('%bProcessing ' . $this->settings['--type'] . 'errors.txt file%w');
 
         $errors = [];
 
         try {
-            if ($this->localContent->fileExists('logs/' . $this->now . '/errors.txt')) {
-                $errorsFile = $this->localContent->read('logs/' . $this->now . '/errors.txt');
+            if ($this->localContent->fileExists('logs/' . $this->now . '/' . $this->settings['--type'] . 'errors.txt')) {
+                $errorsFile = $this->localContent->read('logs/' . $this->now . '/' . $this->settings['--type'] . 'errors.txt');
 
                 $errors = trim(trim($errorsFile), ',');
 
@@ -792,8 +793,9 @@ class Download extends Base
     protected function getEtagForHash($hash)
     {
         try {
-            if ($this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.txt') ||
-                $this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.zip')
+            if (($this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.txt') ||
+                 $this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.zip')) ||
+                $this->localContent->fileExists($this->hashEtagsDir . strtoupper($hash) . '.txt')
             ) {
                 if ($this->localContent->fileExists($this->hashEtagsDir . strtoupper($hash) . '.txt')) {
                     return $this->localContent->read($this->hashEtagsDir . strtoupper($hash) . '.txt');
