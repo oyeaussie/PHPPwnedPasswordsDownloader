@@ -792,8 +792,9 @@ class Download extends Base
     protected function getEtagForHash($hash)
     {
         try {
-            if ($this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.txt') ||
-                $this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.zip')
+            if (($this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.txt') ||
+                 $this->localContent->fileExists($this->hashDir . strtoupper($hash) . '.zip')) ||
+                $this->localContent->fileExists($this->hashEtagsDir . strtoupper($hash) . '.txt')
             ) {
                 if ($this->localContent->fileExists($this->hashEtagsDir . strtoupper($hash) . '.txt')) {
                     return $this->localContent->read($this->hashEtagsDir . strtoupper($hash) . '.txt');
