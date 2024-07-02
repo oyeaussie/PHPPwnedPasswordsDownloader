@@ -3,6 +3,7 @@
 namespace PHPPwnedPasswordsDownloader;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Psr7\Request;
@@ -616,7 +617,7 @@ class Download extends Base
 
                     $this->hashCounter = $this->hashCounter + 1;
                 },
-                'rejected'      => function (RequestException $reason, $index) {
+                'rejected'      => function (RequestException | ConnectException $reason, $index) {
                     $this->processResponse($reason, $index);
                 },
             ]);
@@ -641,7 +642,7 @@ class Download extends Base
             }
         }
 
-        if ($response instanceof RequestException) {
+        if ($response instanceof RequestException || $response instanceof ConnectException) {
             if ((bool) $this->settings['--force']) {
                 $this->writeToFile($this->settings['--type'] . 'errors.txt', $hash);
 
