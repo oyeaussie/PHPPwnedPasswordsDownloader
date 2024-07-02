@@ -718,7 +718,7 @@ class Download extends Base
 
     protected function processErrors()
     {
-        \cli\line('%bProcessing errors.txt file%w');
+        \cli\line('%bProcessing ' . $this->settings['--type'] . 'errors.txt file%w');
 
         $errors = [];
 
