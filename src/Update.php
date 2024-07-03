@@ -75,7 +75,7 @@ class Update extends Base
                 }
             }
 
-            return $this->addResponse(0, 'OK', $updatesSince);
+            return $this->addResponse(0, (count($updatesSince) > 0) ? 'OK' : 'No Updates!', $updatesSince);
         }
 
         return $this->addResponse(0, 'No Updates!');
