@@ -64,44 +64,75 @@ class Lookup extends Base
 
         echo 'Enter ' . ucfirst($this->settings['--search']) . ': ';
 
-        $cliHandle = fopen('php://stdin','r');
+        $command = [];
+        readline_callback_handler_install("", function () {});
 
         if (strtolower($this->settings['--search']) === 'password') {
-            system("stty -icanon");
-            system('stty -echo');
+            while (true) {
+                $input = stream_get_contents(STDIN, 1);
 
-            $input = "";
-
-            while ($char = fread(STDIN, 1)) {
-                if ($char !== PHP_EOL) {
-                    $input .= $char;
-
-                    echo '*';
-                } else {
+                if (ord($input) == 10) {
+                    if (count($command) === 0) {
+                        continue;
+                    }
                     break;
+                } else if (ord($input) == 127) {
+                    if (count($command) === 0) {
+                        continue;
+                    }
+                    array_pop($command);
+                    fwrite(STDOUT, chr(8));
+                    fwrite(STDOUT, "\033[0K");
+                } else {
+                    $command[] = $input;
+
+                    fwrite(STDOUT, '*');
                 }
             }
 
+            $command = join($command);
+
             if ($this->isNtlm) {
-                $hash = strtoupper(hash('md4',iconv('UTF-8','UTF-16LE',$input)));
+                $hash = strtoupper(hash('md4',iconv('UTF-8','UTF-16LE', $command)));
             } else {
-                $hash = strtoupper(sha1(trim($input)));
+                $hash = strtoupper(sha1(trim($command)));
             }
 
             $hashFile = substr($hash, 0, 5);
 
-            system('stty echo');
-
             echo PHP_EOL;
         } else if (strtolower($this->settings['--search']) === 'hash') {
-            $input = rtrim(fgets($cliHandle), "\r\n");
+            while (true) {
+                $input = stream_get_contents(STDIN, 1);
 
-            $hash = strtoupper(trim($input));
+                if (ord($input) == 10) {
+                    if (count($command) === 0) {
+                        continue;
+                    }
+                    \cli\line("%r%w");
+                    break;
+                } else if (ord($input) == 127) {
+                    if (count($command) === 0) {
+                        continue;
+                    }
+                    array_pop($command);
+                    fwrite(STDOUT, chr(8));
+                    fwrite(STDOUT, "\033[0K");
+                } else {
+                    $command[] = $input;
+
+                    fwrite(STDOUT, $input);
+                }
+            }
+
+            $command = join($command);
+
+            $hash = strtoupper(trim($command));
 
             $hashFile = substr($hash, 0, 5);
 
-            if (strlen($input) === 32 || strlen($input) === 40) {
-                if (strlen($input) === 32) {
+            if (strlen($command) === 32 || strlen($command) === 40) {
+                if (strlen($command) === 32) {
                     $this->isNtlm = true;
                 }
             } else {
@@ -114,6 +145,8 @@ class Lookup extends Base
 
             exit;
         }
+
+        readline_callback_handler_remove();
 
         $method = 'search' . ucfirst($this->settings['--search-method']);
 
