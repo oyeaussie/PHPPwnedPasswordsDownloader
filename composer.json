@@ -43,8 +43,7 @@
         "carbon-cli/carbon-cli": "*",
         "wp-cli/php-cli-tools": "^0.11.22",
         "guzzlehttp/guzzle": "^7.8",
-        "league/flysystem": "^3.28",
-        "nesbot/carbon": "^3.6"
+        "league/flysystem": "^3.28"
     },
     "autoload": {
         "psr-4": {
