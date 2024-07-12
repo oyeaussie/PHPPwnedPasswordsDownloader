@@ -40,20 +40,16 @@
         "symfony/deprecation-contracts": "^2.2 || ^3.0",
         "wp-cli/php-cli-tools": "*",
         "nesbot/carbon": "*",
-        "carbon-cli/carbon-cli": "*"
+        "carbon-cli/carbon-cli": "*",
+        "wp-cli/php-cli-tools": "^0.11.22",
+        "guzzlehttp/guzzle": "^7.8",
+        "league/flysystem": "^3.28",
+        "nesbot/carbon": "^3.6"
     },
     "autoload": {
         "psr-4": {
             "PHPPwnedPasswordsDownloader\\": "src/"
         }
-    },
-    "require": {
-        "guzzlehttp/guzzle": "^7.8",
-        "league/flysystem": "^3.28"
-    },
-    "require-dev": {
-        "wp-cli/php-cli-tools": "^0.11.22",
-        "nesbot/carbon": "^3.6"
     },
     "bin": [
         "src/bin/hibp"
