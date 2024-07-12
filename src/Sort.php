@@ -13,9 +13,9 @@ use PHPPwnedPasswordsDownloader\Base;
 
 class Sort extends Base
 {
-    public function __construct(array $settings = [])
+    public function __construct(array $settings = [], $dataPath = null)
     {
-        parent::__construct();
+        parent::__construct(false, $dataPath);
 
         $this->settings = array_merge(
             [

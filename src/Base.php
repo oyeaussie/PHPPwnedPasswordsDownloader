@@ -31,13 +31,13 @@ abstract class Base
 
     protected $hashEtagsDir = 'shaetags/';
 
-    public function __construct($createRoot = false)
+    public function __construct($createRoot = false, $dataPath = null)
     {
         $this->now = date('Y-m-d-H-i-s');
 
         $this->localContent = new Filesystem(
             new LocalFilesystemAdapter(
-                __DIR__ . '/../data/',
+                $dataPath ?? __DIR__ . '/../data/',
                 null,
                 LOCK_EX,
                 LocalFilesystemAdapter::SKIP_LINKS,
