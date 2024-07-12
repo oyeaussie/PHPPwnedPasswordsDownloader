@@ -752,6 +752,7 @@ class Download extends Base
                 $this->noChange = 0;
                 $this->recordErrors = false;
 
+                \cli\line('');
                 \cli\line('%bTrying hash ' . $errorHash . ' again...%w');
 
                 if ($this->run()) {
