@@ -1,6 +1,6 @@
 {
     "name": "oyeaussie/phppwnedpasswordsdownloader",
-    "description": "PHP downloader for HaveIBeenPwned",
+    "description": "PHPPwnedPasswordsDownloader is a tool to download pwned password hash files from HaveIBeenPwned API",
     "keywords": [
         "HaveIBeenPwned",
         "downloader"
@@ -9,7 +9,26 @@
         {
             "name": "Oyeaussie",
             "email": "email@oyeaussie.com",
-            "homepage": "https://github.com/oyeaussie"
+            "homepage": "https://www.oyeaussie.com"
+        }
+    ],
+    "support": {
+        "source": "https://github.com/oyeaussie/PHPPwnedPasswordsDownloader",
+        "issues": "https://github.com/oyeaussie/PHPPwnedPasswordsDownloader/issues",
+        "docs": "https://github.com/oyeaussie/PHPPwnedPasswordsDownloader/wiki/1.-Description"
+    },
+    "funding": [
+        {
+            "url": "https://github.com/sponsors/oyeaussie",
+            "type": "github"
+        },
+        {
+            "url": "https://opencollective.com/oyeaussie",
+            "type": "opencollective"
+        },
+        {
+            "url": "https://buymeacoffee.com/oyeaussie",
+            "type": "other"
         }
     ],
     "require": {
@@ -20,7 +39,8 @@
         "psr/http-client": "^1.0",
         "symfony/deprecation-contracts": "^2.2 || ^3.0",
         "wp-cli/php-cli-tools": "*",
-        "nesbot/carbon": "*"
+        "nesbot/carbon": "*",
+        "carbon-cli/carbon-cli": "*"
     },
     "autoload": {
         "psr-4": {
@@ -34,5 +54,8 @@
     "require-dev": {
         "wp-cli/php-cli-tools": "^0.11.22",
         "nesbot/carbon": "^3.6"
-    }
+    },
+    "bin": [
+        "bin/hibp"
+    ]
 }
