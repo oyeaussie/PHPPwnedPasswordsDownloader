@@ -16,9 +16,9 @@ class Cache extends Base
 {
     public $redis;
 
-    public function __construct(array $settings = [])
+    public function __construct(array $settings = [], $dataPath = null)
     {
-        parent::__construct();
+        parent::__construct(false, $dataPath);
 
         $this->settings = array_merge(
             [

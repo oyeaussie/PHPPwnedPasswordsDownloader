@@ -42,9 +42,9 @@ class Download extends Base
 
     protected $recordErrors = true;
 
-    public function __construct(array $settings = [])
+    public function __construct(array $settings = [], $dataPath = null)
     {
-        parent::__construct();
+        parent::__construct(false, $dataPath);
 
         $this->remoteWebContent = new Client(
             [
