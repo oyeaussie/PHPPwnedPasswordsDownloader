@@ -13,6 +13,8 @@ include $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
 try {
     if (PHP_SAPI === 'cli') {
+        $dataPath = $_composer_bin_dir ? $_composer_bin_dir . '/../../data/' : null;
+
         \cli\line('%wThis is a CLI tool to download, index, cache, sort and lookup pwned password. Type ./hibp --help for list of commands.%w');
         \cli\line('');
 
@@ -35,25 +37,17 @@ try {
                 }
 
                 if ($method === 'download') {//download
-                    (new Download($argv))->run();
+                    (new Download($argv, $dataPath))->run();
                 } else if ($method === 'sort') {//sort
-                    (new Sort($argv))->run();
+                    (new Sort($argv, $dataPath))->run();
                 } else if ($method === 'index') {//index
-                    (new Index($argv))->run();
+                    (new Index($argv, $dataPath))->run();
                 } else if ($method === 'lookup') {//lookup
-                    (new Lookup($argv))->search();
+                    (new Lookup($argv, $dataPath))->search();
                 } else if ($method === 'compare') {//compare downloads to generate update json and update php file.
-                    (new Compare($argv))->run();
+                    (new Compare($argv, $dataPath))->run();
                 }
             }
-        }
-    } else if (isset($_GET['since'])) {
-        $updates = (new Update())->getUpdates();
-
-        if ($updates) {
-            header('Content-Type: application/json; charset=utf-8');
-
-            echo json_encode($updates);
         }
     } else {
         echo "This is a CLI tool to download, index, cache, sort and lookup pwned password. From CLI, type ./hibp --help for list of commands.";
